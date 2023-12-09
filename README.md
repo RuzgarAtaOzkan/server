@@ -5,13 +5,15 @@
 - Scalable Code Architecture to Add-On
 - Very Fast and Stable
 - Clean & Easy to Understand Code Layout
+- Simple User Reference System
 - Minimal Node Modules
 
 # Prerequisites
 
 - Linux distro
 - redis service
-- mongodb service (mongo atlas cloud as well)
+- mongodb service
+- pm2
 - imagekit account
 - smtp email account
 
@@ -21,7 +23,9 @@
 # Linux package installations
 $ sudo apt install redis
 $ sudo apt install mongodb
+
 $ # sudo apt install nginx (optional but recommended)
+$ # sudo npm install -g pm2 (optional but recommended)
 
 # Project installation
 $ git clone https://github.com/RuzgarAtaOzkan/linux-web-server.git
