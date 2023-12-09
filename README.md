@@ -1,11 +1,11 @@
 # Features:
 
 - Secure Cookie Authentication for User Communication
-- Simple Admin-User Role System
-- Scalable Code Architecture to Add-On
 - Very Fast and Stable
-- Clean & Easy to Understand Code Layout
+- Simple Admin-User Role System
 - Simple User Reference System
+- Scalable Code Architecture to Add-On
+- Clean & Easy to Understand Code Layout
 - Minimal Node Modules
 
 # Prerequisites
