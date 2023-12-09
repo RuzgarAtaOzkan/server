@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "baseUrl": "src",
+    "lib": ["es2020"],
+    "module": "commonjs",
+    "pretty": true,
+    "target": "es2020",
+    "types": ["node", "mongodb"],
+    "strict": true,
+    "esModuleInterop": true,
+    "rootDir": "./src",
+    "outDir": "./build"
+  }
+}
