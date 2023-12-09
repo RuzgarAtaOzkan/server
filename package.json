@@ -1,14 +1,20 @@
 {
   "name": "linux-web-server",
   "version": "1.0.0",
-  "description": "Scalable and stable nodejs server with very clean architecture.",
+  "description": "scalable and stable fastify server with secure cookie based authentication.",
   "main": "src/index.ts",
   "scripts": {
     "start": "node build/index.js",
     "build": "tsc",
     "pm2": "pm2 start build/index.js --name linux-web-server"
   },
-  "keywords": [],
+  "keywords": [
+    "server",
+    "linux",
+    "secure",
+    "cookie",
+    "fastify"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

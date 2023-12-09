@@ -4,14 +4,14 @@
 - Simple Admin-User Role System
 - Scalable Code Architecture to Add-On
 - Very Fast and Stable
-- Easy to Understand Code Layout
+- Clean & Easy to Understand Code Layout
 - Minimal Node Modules
 
 # Prerequisites
 
 - Linux distro
 - redis service
-- mongodb service
+- mongodb service (mongo atlas cloud as well)
 - imagekit account
 - smtp email account
 
@@ -21,6 +21,7 @@
 # Linux package installations
 $ sudo apt install redis
 $ sudo apt install mongodb
+$ # sudo apt install nginx (optional but recommended)
 
 # Project installation
 $ git clone https://github.com/RuzgarAtaOzkan/linux-web-server.git
