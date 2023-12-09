@@ -1,9 +1,33 @@
+# Features:
+
+- Secure Cookie Authentication for User Communication
+- Simple Admin-User Role System
+- Scalable Code Architecture to Add-On
+- Very Fast and Stable
+- Easy to Understand Code Layout
+- Minimal Node Modules
+
+# Prerequisites
+
+- Linux distro
+- redis service
+- mongodb service
+- imagekit account
+- smtp email account
+
 # Installation
 
 ```bash
-$ git clone https://github.com/RuzgarAtaOzkan/server.git
-$ cd ./server
+# Linux package installations
+$ sudo apt install redis
+$ sudo apt install mongodb
+
+# Project installation
+$ git clone https://github.com/RuzgarAtaOzkan/linux-web-server.git
+$ cd ./linux-web-server
 $ npm install
+$ npm run build
+$ npm run start
 ```
 
 Then create a .env file in the root of the project and enter your environment values.

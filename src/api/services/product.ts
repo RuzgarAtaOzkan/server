@@ -126,41 +126,6 @@ class service_product_init {
     return credentials.favs;
   }
 
-  async update_products(credentials: any): Promise<any> {
-    await this.validator.update_products(credentials);
-
-    for (let i: number = 0; i < credentials.products.length; i++) {
-      // id section
-      const id: string = await UTILS_SERVICES.generate_product_id(
-        6,
-        this.options
-      );
-      credentials.products[i].id = id;
-    }
-
-    const products: any = await this.options.redis.hGetAll('products');
-
-    // delete all the products which has no owner_id
-    for (const key in products) {
-      const product: any = JSON.parse(products[key]);
-
-      if (!product.owner_id) {
-        await this.options.redis.hDel('products', key);
-      }
-    }
-
-    // place incoming products into redis
-    for (let i: number = 0; i < credentials.products.length; i++) {
-      await this.options.redis.hSet(
-        'products',
-        credentials.products[i].id,
-        JSON.stringify(credentials.products[i])
-      );
-    }
-
-    return credentials.products;
-  }
-
   async create_product(credentials: any): Promise<void> {
     const store = await this.validator.create_product(credentials);
     const id: string = await UTILS_SERVICES.generate_product_id(

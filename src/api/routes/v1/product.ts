@@ -102,27 +102,6 @@ function bind_product_routes(
       },
     },
 
-    product_update: {
-      method: 'PATCH',
-      url: '/v1' + config.endpoints.products,
-      preValidation: mw.prevalidation(null, options),
-      handler: async function (request: any, reply: any) {
-        const credentials: any = {
-          products: request.body,
-          key: request.headers['x-key'],
-          ip: request.ip,
-        };
-
-        try {
-          const product = await services.product.update_products(credentials);
-
-          reply.send(product);
-        } catch (err: any) {
-          reply.status(422).send(err);
-        }
-      },
-    },
-
     product_create: {
       method: 'POST',
       url: '/v1' + config.endpoints.products,
