@@ -1,19 +1,16 @@
 # Features:
 
 - Secure Cookie Authentication for User Communication
-- Very Fast and Stable
 - Simple Admin-User Role System
 - Simple User Reference System
+- Media Upload through Imagekit
 - Scalable Code Architecture to Add-On
-- Clean & Easy to Understand Code Layout
-- Minimal Node Modules
 
 # Prerequisites
 
 - Linux distro
 - redis service
 - mongodb service
-- pm2
 - imagekit account
 - smtp email account
 
