@@ -1,7 +1,7 @@
 {
   "name": "linux-web-server",
-  "version": "1.0.0",
-  "description": "scalable and stable fastify server with secure cookie based authentication.",
+  "version": "1.1.0",
+  "description": "Scalable & Stable Fastify Server Architecture with Secure Cookie Based Authentication.",
   "main": "src/index.ts",
   "scripts": {
     "start": "node build/index.js",
@@ -9,13 +9,14 @@
     "pm2": "pm2 start build/index.js --name linux-web-server"
   },
   "keywords": [
+    "web",
     "server",
     "linux",
     "secure",
     "cookie",
     "fastify"
   ],
-  "author": "",
+  "author": "Ruzgar Ata Ozkan",
   "license": "MIT",
   "dependencies": {
     "@fastify/cookie": "^9.1.0",

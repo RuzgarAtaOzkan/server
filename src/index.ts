@@ -1,11 +1,6 @@
 'use strict';
 
-// ENTRY POINT OF THE PROGRAM.
-
-// MODULES
-import crypto from 'node:crypto';
-import { ObjectId } from 'mongodb';
-import axios from 'axios';
+// INITIALIZATION POINT OF THE PROGRAM.
 
 // INTERFACES
 import { FastifyInstance } from 'fastify';

@@ -6,6 +6,8 @@ import { Document, ObjectId } from 'mongodb';
 // CONFIG
 import config from '../../config';
 
+// MIDDLEWARE AUTHENTICATION FUNCTIONS
+
 export async function is_admin(request: any, options: any): Promise<boolean> {
   if (!request.cookies) {
     return false;

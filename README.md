@@ -22,7 +22,7 @@
 ```bash
 # Linux package installations
 $ sudo apt install redis
-$ sudo apt install mongodb
+$ sudo apt install mongodb (you can use mongo atlas cloud as an alternative to mongodb package)
 
 $ # sudo apt install nginx (optional but recommended)
 $ # sudo npm install -g pm2 (optional but recommended)

@@ -1,9 +1,8 @@
 'use strict';
 
 // MODULES
-import Crypto from 'node:crypto';
+import crypto from 'node:crypto';
 import ImageKit from 'imagekit';
-import validator from 'validator';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
@@ -204,7 +203,8 @@ class service_auth_init {
       { password_reset_token: credentials.token },
       {
         $set: {
-          password: Crypto.createHash('sha256')
+          password: crypto
+            .createHash('sha256')
             .update(credentials.password)
             .digest('hex'),
           password_reset_token: null,
@@ -234,7 +234,8 @@ class service_auth_init {
       { _id: credentials.user._id },
       {
         $set: {
-          password: Crypto.createHash('sha256')
+          password: crypto
+            .createHash('sha256')
             .update(credentials.new_password)
             .digest('hex'),
           updated_at: new Date(),
