@@ -8,10 +8,10 @@ import { Document } from 'mongodb';
 import options_i from 'interfaces/common';
 
 // CONFIG
-import config from '../../config';
+import config from '../config';
 
 // UTILS
-import UTILS_SERVICES from '../../utils/services';
+import UTILS_SERVICES from '../utils/services';
 
 class service_mail_init {
   private options: options_i;

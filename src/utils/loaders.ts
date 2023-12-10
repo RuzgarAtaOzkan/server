@@ -137,21 +137,8 @@ export async function sessions_clear(options: options_i): Promise<void> {
   }
 }
 
-export async function products_update_zara(
-  transporter: Transporter,
-  options: options_i
-) {}
-
-export async function products_update(
-  transporter: Transporter,
-  options: options_i
-) {
-  products_update_zara(transporter, options);
-}
-
 export default {
   admins_inspect,
   imagekit_clear,
   sessions_clear,
-  products_update,
 };

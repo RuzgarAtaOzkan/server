@@ -12,7 +12,7 @@ import config from './config';
 import load_server from './loaders';
 
 async function init(): Promise<void> {
-  // load_ferver returns a fastify instance with configured routes as well as mongodb database
+  // load_server returns a fastify instance with configured routes as well as mongodb database
   const server: FastifyInstance = await load_server();
 
   await server.listen({ port: Number(config.env.PORT), host: config.env.HOST });

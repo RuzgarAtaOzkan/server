@@ -10,11 +10,11 @@ import { Document, InsertOneResult, ObjectId } from 'mongodb';
 import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 
 // CONFIG
-import config from '../../config';
+import config from '../config';
 
 // UTILS
-import UTILS_SERVICES from '../../utils/services';
-import UTILS_COMMON from '../../utils/common';
+import UTILS_SERVICES from '../utils/services';
+import UTILS_COMMON from '../utils/common';
 
 class service_settings_init {
   private options: any;

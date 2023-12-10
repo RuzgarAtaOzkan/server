@@ -10,11 +10,11 @@ import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 import options_i from 'interfaces/common';
 
 // CONFIG
-import config from '../../config';
+import config from '../config';
 
 // UTILS
-import UTILS_SERVICES from '../../utils/services';
-import UTILS_COMMON from '../../utils/common';
+import UTILS_SERVICES from '../utils/services';
+import UTILS_COMMON from '../utils/common';
 
 class service_store_init {
   private options: options_i;

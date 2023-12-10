@@ -8,11 +8,11 @@ import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
 
 // SERVICES
-import service_auth_init from './services/auth';
-import service_mail_init from './services/mail';
-import service_settings_init from './services/settings';
-import service_store_init from './services/store';
-import service_product_init from './services/product';
+import service_auth_init from '../services/auth';
+import service_mail_init from '../services/mail';
+import service_settings_init from '../services/settings';
+import service_store_init from '../services/store';
+import service_product_init from '../services/product';
 
 // Route Binders
 import bind_auth_routes from './routes/v1/auth';
