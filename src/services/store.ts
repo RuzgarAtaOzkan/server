@@ -74,9 +74,14 @@ class service_store_init {
     });
      */
 
-    fs.writeFileSync('public/images/' + file_name, base64_data, {
-      encoding: 'base64',
-    });
+    fs.writeFile(
+      'public/images/' + file_name,
+      base64_data,
+      {
+        encoding: 'base64',
+      },
+      function (err: any) {}
+    );
 
     let image_url: string = config.env.URL_API + '/public/images/' + file_name;
 
