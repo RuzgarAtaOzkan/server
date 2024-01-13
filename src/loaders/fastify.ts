@@ -1,6 +1,8 @@
 'use strict';
 
 // MODULES
+import path from 'node:path';
+
 import Fastify, { FastifyInstance } from 'fastify';
 import fastify_cookie from '@fastify/cookie';
 import fastify_cors from '@fastify/cors';
@@ -28,6 +30,12 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
   });
 
   // fastify middleware plugin registrations
+
+  await server.register(require('@fastify/static'), {
+    root: process.cwd(),
+    prefix: '/public/', // optional: default '/'
+    constraints: { host: config.env.URL_UI }, // optional: default {}
+  });
 
   await server.register(fastify_cors, {
     credentials: true, // cookie acceptance

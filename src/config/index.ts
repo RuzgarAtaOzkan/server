@@ -16,6 +16,10 @@ if (env.error) {
 
 const config: config_i = {
   endpoints: {
+    // STATIC ENDPOINTS
+    public: '/public',
+    public_image: '/public/images/:id',
+
     // AUTH ENDPOINTS
     auth_root: '/',
     auth_profile: '/profile',

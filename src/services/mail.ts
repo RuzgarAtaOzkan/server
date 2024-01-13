@@ -24,17 +24,20 @@ class service_mail_init {
 
     this.transporter = nodemailer.createTransport({
       host: config.env.EMAIL_HOST,
-      port: 465,
-      secure: true,
+      port: 587, //465,
+      secure: false,
       auth: {
         user: config.env.EMAIL_NO_REPLY_USERNAME,
         pass: config.env.EMAIL_NO_REPLY_PASSWORD,
+      },
+      tls: {
+        ciphers: 'SSLv3',
       },
     });
 
     this.transporter.verify(function (err: any, success: any) {
       if (err) {
-        throw err;
+        //throw err;
       }
     });
   }

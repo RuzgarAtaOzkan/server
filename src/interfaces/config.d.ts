@@ -2,6 +2,9 @@ import { roles_t, types_t } from 'types/config';
 
 export default interface config_i {
   readonly endpoints: {
+    readonly public: string;
+    readonly public_image: string;
+
     readonly auth_root: string;
     readonly auth_profile: string;
     readonly auth_signin: string;

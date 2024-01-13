@@ -39,9 +39,9 @@ class service_product_init {
     // delete undefined query values from credentials, we need valid keys count to check full && match
     await this.validator.get_products(credentials);
 
-    const query = credentials.query;
+    const query: any = credentials.query;
 
-    // credentials { name: 'T-Shirt', fav}
+    let limit: number = 0;
     let query_count: number = 0;
     for (const key in query) {
       if (query[key]) {
@@ -58,6 +58,13 @@ class service_product_init {
       const product = JSON.parse(products[key]);
 
       if (product.store_id === query.store_id) {
+        query_ctr++;
+      }
+
+      if (
+        product.brand_name &&
+        product.brand_name.toLowerCase() === query.brand_name?.toLowerCase()
+      ) {
         query_ctr++;
       }
 
@@ -88,6 +95,14 @@ class service_product_init {
       // add current product to response if matched all queries not more
       if (query_ctr === query_count) {
         results.push(product);
+
+        if (credentials.limit) {
+          limit++;
+
+          if (limit >= Number(credentials.limit)) {
+            break;
+          }
+        }
       }
     }
 

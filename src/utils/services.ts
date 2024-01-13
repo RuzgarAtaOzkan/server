@@ -381,6 +381,10 @@ export class validator_auth_init {
       };
     }
 
+    if (credentials.img_base64) {
+      validator_common_init.base64(credentials.img_base64, err);
+    }
+
     /**
      * 
      * 
@@ -1690,6 +1694,12 @@ export class validator_product_init {
         credentials.query[key] = undefined;
         delete credentials.query[key];
       }
+    }
+
+    if (credentials.query.limit) {
+      credentials.limit = credentials.query.limit;
+      credentials.query.limit = undefined;
+      delete credentials.query.limit;
     }
   }
 

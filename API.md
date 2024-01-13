@@ -2,7 +2,7 @@
 
 ## Full URL: https://api.kaciriyosun.com/v1
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [GET] /profile
 
@@ -15,8 +15,8 @@ Kullanici buraya GET istegi atarak giris yapip yapmadigini anlayabilir. Eger gir
 ```json
 {
   "_id": "6536a0a985f418de9e8093c2",
-  "username": "mirsaiddev",
-  "email": "mirsaiddev@gmail.com",
+  "username": "linus",
+  "email": "linus@test.com",
   "email_verified": false,
   "role": "user",
   "img": "",
@@ -32,7 +32,7 @@ Kullanici buraya GET istegi atarak giris yapip yapmadigini anlayabilir. Eger gir
 null;
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [PUT] /profile
 
@@ -44,7 +44,7 @@ Kullanici buraya PUT istegi atarak profil bilgilerindeki yalnizca "username" ve 
 
 ```json
 {
-  "username": "mirsaiddev_farkli",
+  "username": "linus_changed",
   "img_base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEU"
 }
 ```
@@ -54,11 +54,11 @@ Kullanici buraya PUT istegi atarak profil bilgilerindeki yalnizca "username" ve 
 ```json
 {
   "_id": "6536a0a985f418de9e8093c2",
-  "username": "mirsaiddev_farkli",
-  "email": "mirsaiddev@gmail.com",
+  "username": "linus_changed",
+  "email": "linus@test.com",
   "email_verified": false,
   "role": "user",
-  "img": "{IMG_URL}",
+  "img": "https://ik.imagekit.io/cqgjxngof/525f4f5e50e813e9bcfe58865cf43f65_d-Dd8Kyup.jpeg",
   "ref_code": "OJDE2IP8",
   "ref_from": "",
   "api_key": "kaciriyosun_XxH1wALMYOMsWu7vZWrQFk04WjIY"
@@ -83,7 +83,7 @@ Kullanici buraya PUT istegi atarak profil bilgilerindeki yalnizca "username" ve 
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [POST] /signup
 
@@ -128,7 +128,7 @@ Kullanici buraya POST istegi atarak sisteme uye olabilir. Ayni zamanda giris yap
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [POST] /signin
 
@@ -171,7 +171,7 @@ Kullanici buraya POST istegi atarak sisteme giris yapabilir. Oturum baslatilir v
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [GET] /signout
 
@@ -194,7 +194,7 @@ true;
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [GET] /verify-email/:token
 
@@ -227,7 +227,7 @@ Kullanici buraya GET istegi atarak emailini onaylayabilir. endpointteki token ye
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [POST] /change-email
 
@@ -277,7 +277,7 @@ Kullanici buraya POST istegi atarak degistirecegi yeni emailine onay linki gonde
 }
 ```
 
-#### ************************************\*\*************************************
+#### **\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***\*\*\*\***\*\***
 
 ## [POST] /change-password
 

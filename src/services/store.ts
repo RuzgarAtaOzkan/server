@@ -1,6 +1,7 @@
 'use strict';
 
 // MODULES
+import fs from 'fs';
 import nodemailer from 'nodemailer';
 import ImageKit from 'imagekit';
 
@@ -65,17 +66,26 @@ class service_store_init {
     const file_name: string =
       UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
-    const imagekit_res: UploadResponse = await this.imagekit.upload({
+    /**
+     * 
+     *     const imagekit_res: UploadResponse = await this.imagekit.upload({
       file: base64_data,
       fileName: file_name,
     });
+     */
+
+    fs.writeFileSync('public/images/' + file_name, base64_data, {
+      encoding: 'base64',
+    });
+
+    let image_url: string = config.env.URL_API + '/public/images/' + file_name;
 
     const store_doc: any = await UTILS_SERVICES.create_store_doc(
       credentials,
       this.options
     );
 
-    store_doc.img = imagekit_res.url;
+    store_doc.img = image_url;
 
     const insert_one_result: InsertOneResult =
       await this.options.db.stores.insertOne(store_doc);
@@ -89,7 +99,7 @@ class service_store_init {
   async edit_store(credentials: any): Promise<any> {
     const store = await this.validator.edit_store(credentials);
 
-    let imagekit_url: null | string = null;
+    let image_url: null | string = null;
     if (credentials.img_base64) {
       const base64_buffer: string[] = credentials.img_base64.split(';base64,');
       const base64_type: string = base64_buffer[0];
@@ -99,12 +109,32 @@ class service_store_init {
       const file_name: string =
         UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
-      const imagekit_res: UploadResponse = await this.imagekit.upload({
+      /**      const imagekit_res: UploadResponse = await this.imagekit.upload({
         file: base64_data,
         fileName: file_name,
       });
 
       imagekit_url = imagekit_res.url;
+
+       * 
+       */
+
+      // Delete previous store img file
+      const previous_img_parts: string[] = store.img.split('/');
+      const previous_img_id: string =
+        previous_img_parts[previous_img_parts.length - 1];
+
+      fs.unlink('public/images/' + previous_img_id, function (err: any) {});
+
+      // Write new base64 buffer to file asyncronously
+      fs.writeFile(
+        'public/images/' + file_name,
+        base64_data,
+        { encoding: 'base64' },
+        function (err: any) {}
+      );
+
+      image_url = config.env.URL_API + '/public/images/' + file_name;
     }
 
     await this.options.db.stores.updateOne(
@@ -113,7 +143,7 @@ class service_store_init {
         $set: {
           name: credentials.name,
           featured: credentials.featured,
-          img: imagekit_url ? imagekit_url : store.img,
+          img: image_url ? image_url : store.img,
           updated_at: new Date(),
         },
       }
@@ -121,7 +151,7 @@ class service_store_init {
 
     store.name = credentials.name;
     store.featured = credentials.featured;
-    store.img = imagekit_url ? imagekit_url : store.img;
+    store.img = image_url ? image_url : store.img;
     store.updated_at = new Date();
 
     return store;

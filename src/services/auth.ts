@@ -1,6 +1,7 @@
 'use strict';
 
 // MODULES
+import fs from 'fs';
 import crypto from 'node:crypto';
 import ImageKit from 'imagekit';
 
@@ -52,6 +53,7 @@ class service_auth_init {
     const session_time: string = sparts[2];
 
     if (Number(session_time) + config.env.SESSION_LIFETIME_MS < Date.now()) {
+      await this.options.redis.hDel('sessions', credentials.sid);
       return null;
     }
 
@@ -68,14 +70,13 @@ class service_auth_init {
     }
 
     const profile = UTILS_SERVICES.return_user_profile(user);
-
     return profile;
   }
 
   async edit_profile(credentials: any): Promise<any> {
     await this.validator.edit_profile(credentials, this.options);
 
-    let imagekit_url: string = '';
+    let image_url: string = '';
     if (credentials.img_base64) {
       const base64_buffer: string[] = credentials.img_base64.split(';base64,');
       const base64_type: string = base64_buffer[0];
@@ -85,12 +86,34 @@ class service_auth_init {
       const file_name: string =
         UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
+      /**
+       *
       const imagekit_res: UploadResponse = await this.imagekit.upload({
         file: base64_data,
         fileName: file_name,
       });
 
-      imagekit_url = imagekit_res.url;
+      image_url = imagekit_res.url;
+       * 
+       */
+
+      // File system integration
+
+      // Delete previous image of the user
+      const previous_img_parts: string[] = credentials.user.img.split('/');
+      const previous_img_id: string =
+        previous_img_parts[previous_img_parts.length - 1];
+      fs.unlink('public/images/' + previous_img_id, function (err: any) {});
+
+      // Write new base64 buffer to file async
+      fs.writeFile(
+        'public/images/' + file_name,
+        base64_data,
+        { encoding: 'base64' },
+        function (err: any) {}
+      );
+
+      image_url = config.env.URL_API + '/public/images/' + file_name;
     }
 
     // update user credentials
@@ -105,8 +128,11 @@ class service_auth_init {
             credentials.username !== credentials.user.username
               ? new Date()
               : credentials.user.username_changed_at,
+
           phone: credentials.phone,
-          img: imagekit_url ? imagekit_url : credentials.user.img,
+
+          img: image_url ? image_url : credentials.user.img,
+
           favs: credentials.favs,
         },
       }
@@ -115,7 +141,7 @@ class service_auth_init {
     credentials.user.name = credentials.name;
     credentials.user.username = credentials.username;
     credentials.user.phone = credentials.phone;
-    credentials.user.img = imagekit_url ? imagekit_url : credentials.user.img;
+    credentials.user.img = image_url ? image_url : credentials.user.img;
     credentials.user.favs = credentials.favs;
 
     // create client user to send it back to client to see the updated values.
@@ -161,7 +187,6 @@ class service_auth_init {
 
     const profile = UTILS_SERVICES.return_user_profile(user);
     const result = { user: profile, sid };
-
     return result;
   }
 

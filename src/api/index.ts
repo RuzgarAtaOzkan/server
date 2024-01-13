@@ -15,6 +15,8 @@ import service_store_init from '../services/store';
 import service_product_init from '../services/product';
 
 // Route Binders
+import bind_static_routes from './routes/static';
+// v1
 import bind_auth_routes from './routes/v1/auth';
 import bind_mail_routes from './routes/v1/mail';
 import bind_settings_routes from './routes/v1/settings';
@@ -33,6 +35,7 @@ function bind_routes(server: FastifyInstance, options: any): FastifyInstance {
   };
 
   // Bind the routes and paths to fastify instance. e.g. server.route({ method: 'GET', handler: (request: any, reply: any) => {} })
+  bind_static_routes(server, services, options);
   bind_auth_routes(server, services, options);
   bind_mail_routes(server, services, options);
   bind_settings_routes(server, services, options);

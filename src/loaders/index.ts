@@ -1,6 +1,7 @@
 'use strict';
 
 // MODULES
+import fs from 'fs';
 import MongoClient, { ObjectId } from 'mongodb';
 import crypto from 'node:crypto';
 import axios from 'axios';
@@ -20,6 +21,15 @@ import load_redis from './redis';
 
 async function load_server(): Promise<FastifyInstance> {
   // Dependency injections, you will carry that object throughout the whole program
+
+  if (!fs.existsSync('public')) {
+    fs.mkdirSync('public');
+  }
+
+  if (!fs.existsSync('public/images')) {
+    fs.mkdirSync('public/images');
+  }
+
   const options: options_i = {
     db: null,
     redis: null,
