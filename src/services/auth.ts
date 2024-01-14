@@ -20,7 +20,6 @@ class service_auth_init {
   private options: any;
   private validator: any;
   private imagekit: ImageKit;
-  //sdfsf
 
   constructor(options: any) {
     this.options = options;
@@ -106,7 +105,7 @@ class service_auth_init {
         previous_img_parts[previous_img_parts.length - 1];
       fs.unlink('public/images/' + previous_img_id, function (err: any) {});
 
-      // Write new base64 buffer to file async
+      // Write new base64 buffer to file asynchronously
       fs.writeFile(
         'public/images/' + file_name,
         base64_data,
@@ -240,8 +239,8 @@ class service_auth_init {
       }
     );
 
+    // Delete user sessions
     const sessions = await this.options.redis.hGetAll('sessions');
-
     for (const key in sessions) {
       if (sessions[key].includes(user._id.toString())) {
         this.options.redis.hDel('sessions', key);

@@ -801,13 +801,13 @@ export async function create_session(
 export async function generate_email_verification_token(
   options: any
 ): Promise<string> {
-  let token: string = UTILS_COMMON.random({ length: 128 });
+  let token: string = UTILS_COMMON.random({ length: 64 });
   let user: Document | null = await options.db.users.findOne({
     email_verification_token: token,
   });
 
   while (user) {
-    token = UTILS_COMMON.random({ length: 128 });
+    token = UTILS_COMMON.random({ length: 64 });
     user = await options.db.users.findOne({
       email_verification_token: token,
     });
@@ -819,13 +819,13 @@ export async function generate_email_verification_token(
 export async function generate_password_reset_token(
   options: any
 ): Promise<string> {
-  let token: string = UTILS_COMMON.random({ length: 128 });
+  let token: string = UTILS_COMMON.random({ length: 64 });
   let user: Document | null = await options.db.users.findOne({
     password_reset_token: token,
   });
 
   while (user) {
-    token = UTILS_COMMON.random({ length: 128 });
+    token = UTILS_COMMON.random({ length: 64 });
     user = await options.db.users.findOne({
       password_reset_token: token,
     });
