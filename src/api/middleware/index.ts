@@ -28,33 +28,25 @@ export function prevalidation(
         promises.push(cprom);
       }
 
-      try {
-        const results: boolean[] = await Promise.all(promises);
+      const results: boolean[] = await Promise.all(promises);
 
-        for (let i: number = 0; i < results.length; i++) {
-          if (results[i] === false) {
-            reply.status(401).send('unauthorized');
+      for (let i: number = 0; i < results.length; i++) {
+        if (results[i] === false) {
+          reply.status(401).send('unauthorized');
 
-            return;
-          }
+          return;
         }
-      } catch (err: any) {
-        reply.status(422).send(err);
       }
 
       return;
     }
 
-    try {
-      const result = await calls(request, options);
+    const result = await calls(request, options);
 
-      if (result === false) {
-        reply.status(401).send('unauthorized');
+    if (result === false) {
+      reply.status(401).send('unauthorized');
 
-        return;
-      }
-    } catch (err: any) {
-      reply.status(422).send(err);
+      return;
     }
 
     return;

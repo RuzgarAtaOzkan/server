@@ -8,6 +8,7 @@ import fastify_cookie from '@fastify/cookie';
 import fastify_cors from '@fastify/cors';
 import fastify_helmet from '@fastify/helmet';
 import fastify_rate_limit from '@fastify/rate-limit';
+import fastify_static from '@fastify/static';
 
 // API
 import bind_routes from '../api';
@@ -25,15 +26,17 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
     logger: {
       // pino logger module by default
       level: 'info',
-      file: __dirname + '/../../' + 'logs.log',
+      file: process.cwd() + '/logs.log',
     },
   });
 
   // fastify middleware plugin registrations
 
-  await server.register(require('@fastify/static'), {
+  await server.register(fastify_helmet, { global: true });
+
+  await server.register(fastify_static, {
     root: process.cwd(),
-    prefix: '/public/', // optional: default '/'
+    prefix: '/', // optional: default '/'
     constraints: { host: config.env.URL_UI }, // optional: default {}
   });
 
@@ -48,7 +51,6 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
     ],
   });
 
-  await server.register(fastify_helmet);
   await server.register(fastify_cookie, {
     secret: config.env.SESSION_SECRET,
     parseOptions: {},
