@@ -74,10 +74,6 @@ const config: config_i = {
     URL_API: process.env.URL_API || '',
     URL_UI: process.env.URL_UI || '',
 
-    IMAGEKIT_PUBLIC_KEY: process.env.IMAGEKIT_PUBLIC_KEY || '',
-    IMAGEKIT_PRIVATE_KEY: process.env.IMAGEKIT_PRIVATE_KEY || '',
-    IMAGEKIT_ID: process.env.IMAGEKIT_ID || '',
-
     SECRET_KEY_CAPTCHA: process.env.SECRET_KEY_CAPTCHA || '',
   },
   roles: {

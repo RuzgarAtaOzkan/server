@@ -3,11 +3,9 @@
 // MODULES
 import fs from 'fs';
 import crypto from 'node:crypto';
-import ImageKit from 'imagekit';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
-import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 
 // CONFIG
 import config from '../config';
@@ -19,18 +17,11 @@ import UTILS_COMMON from '../utils/common';
 class service_auth_init {
   private options: any;
   private validator: any;
-  private imagekit: ImageKit;
 
   constructor(options: any) {
     this.options = options;
 
     this.validator = new UTILS_SERVICES.validator_auth_init(options);
-
-    this.imagekit = new ImageKit({
-      publicKey: config.env.IMAGEKIT_PUBLIC_KEY,
-      privateKey: config.env.IMAGEKIT_PRIVATE_KEY,
-      urlEndpoint: `https://ik.imagekit.io/${config.env.IMAGEKIT_ID}/`,
-    });
   }
 
   async get_profile(credentials: any): Promise<any | null> {
@@ -85,17 +76,6 @@ class service_auth_init {
       const file_ext: string = base64_type.split('/')[1];
       const file_name: string =
         UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
-
-      /**
-       *
-      const imagekit_res: UploadResponse = await this.imagekit.upload({
-        file: base64_data,
-        fileName: file_name,
-      });
-
-      image_url = imagekit_res.url;
-       * 
-       */
 
       // File system integration
 

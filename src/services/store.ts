@@ -3,11 +3,9 @@
 // MODULES
 import fs from 'fs';
 import nodemailer from 'nodemailer';
-import ImageKit from 'imagekit';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
-import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 import options_i from 'interfaces/common';
 
 // CONFIG
@@ -19,17 +17,11 @@ import UTILS_COMMON from '../utils/common';
 
 class service_store_init {
   private options: options_i;
-  private imagekit: any;
   private validator: any;
 
   constructor(options: any) {
     this.options = options;
     this.validator = new UTILS_SERVICES.validator_store_init(options);
-    this.imagekit = new ImageKit({
-      publicKey: config.env.IMAGEKIT_PUBLIC_KEY,
-      privateKey: config.env.IMAGEKIT_PRIVATE_KEY,
-      urlEndpoint: `https://ik.imagekit.io/${config.env.IMAGEKIT_ID}/`,
-    });
   }
 
   async get_store(credentials: any): Promise<any> {
@@ -65,14 +57,6 @@ class service_store_init {
     const file_ext: string = base64_type.split('/')[1];
     const file_name: string =
       UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
-
-    /**
-     * 
-     *     const imagekit_res: UploadResponse = await this.imagekit.upload({
-      file: base64_data,
-      fileName: file_name,
-    });
-     */
 
     fs.writeFile(
       'public/images/' + file_name,
@@ -113,16 +97,6 @@ class service_store_init {
       const file_ext: string = base64_type.split('/')[1];
       const file_name: string =
         UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
-
-      /**      const imagekit_res: UploadResponse = await this.imagekit.upload({
-        file: base64_data,
-        fileName: file_name,
-      });
-
-      imagekit_url = imagekit_res.url;
-
-       * 
-       */
 
       // Delete previous store img file
       const previous_img_parts: string[] = store.img.split('/');

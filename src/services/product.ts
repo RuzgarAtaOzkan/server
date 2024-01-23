@@ -2,11 +2,9 @@
 
 // MODULES
 import nodemailer from 'nodemailer';
-import ImageKit from 'imagekit';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
-import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 import options_i from 'interfaces/common';
 
 // CONFIG
@@ -18,17 +16,11 @@ import UTILS_COMMON from '../utils/common';
 
 class service_product_init {
   private options: options_i;
-  private imagekit: any;
   private validator: any;
 
   constructor(options: any) {
     this.options = options;
     this.validator = new UTILS_SERVICES.validator_product_init(options);
-    this.imagekit = new ImageKit({
-      publicKey: config.env.IMAGEKIT_PUBLIC_KEY,
-      privateKey: config.env.IMAGEKIT_PRIVATE_KEY,
-      urlEndpoint: `https://ik.imagekit.io/${config.env.IMAGEKIT_ID}/`,
-    });
   }
 
   async get_product(credentials: any): Promise<any> {

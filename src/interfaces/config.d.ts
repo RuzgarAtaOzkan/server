@@ -49,9 +49,7 @@ export default interface config_i {
     readonly EMAIL_NO_REPLY_PASSWORD: string;
     readonly URL_API: string;
     readonly URL_UI: string;
-    readonly IMAGEKIT_PUBLIC_KEY: string;
-    readonly IMAGEKIT_PRIVATE_KEY: string;
-    readonly IMAGEKIT_ID: string;
+
     readonly SECRET_KEY_CAPTCHA: string;
   };
   readonly roles: {

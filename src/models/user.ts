@@ -70,7 +70,7 @@ const schema = {
       enum: [config.roles.admin, config.roles.user],
     },
     permission: {
-      enum: [config.env.PERM_USER, config.env.PERM_ADMIN],
+      bsonType: config.types.string,
     },
 
     ip: {

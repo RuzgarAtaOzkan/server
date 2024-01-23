@@ -1,13 +1,12 @@
 'use strict';
 
 // MODULES
+import fs from 'fs';
 import crypto from 'node:crypto';
-import ImageKit from 'imagekit';
 import validator from 'validator';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
-import { UploadResponse } from 'imagekit/dist/libs/interfaces';
 
 // CONFIG
 import config from '../config';
@@ -19,18 +18,11 @@ import UTILS_COMMON from '../utils/common';
 class service_settings_init {
   private options: any;
   private validator: any;
-  private imagekit: ImageKit;
 
   constructor(options: any) {
     this.options = options;
 
     this.validator = new UTILS_SERVICES.validator_settings_init(options);
-
-    this.imagekit = new ImageKit({
-      publicKey: config.env.IMAGEKIT_PUBLIC_KEY,
-      privateKey: config.env.IMAGEKIT_PRIVATE_KEY,
-      urlEndpoint: `https://ik.imagekit.io/${config.env.IMAGEKIT_ID}/`,
-    });
   }
 
   async get_settings(credentials: any): Promise<any | null> {
@@ -50,6 +42,17 @@ class service_settings_init {
   async edit_banners(credentials: any): Promise<any> {
     await this.validator.edit_banners(credentials);
 
+    const settings = JSON.parse(await this.options.redis.get('settings'));
+
+    for (let i: number = 0; i < settings.banners.length; i++) {
+      // Delete previous store img file
+      const previous_img_parts: string[] = settings.banners[i].img.split('/');
+      const previous_img_id: string =
+        previous_img_parts[previous_img_parts.length - 1];
+
+      fs.unlink('public/images/' + previous_img_id, function (err: any) {});
+    }
+
     for (let i = 0; i < credentials.banners.length; i++) {
       // new image process
       if (credentials.banners[i].img_base64) {
@@ -62,12 +65,18 @@ class service_settings_init {
         const file_name: string =
           UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
-        const imagekit_upload_res: UploadResponse = await this.imagekit.upload({
-          file: base64_data,
-          fileName: file_name,
-        });
+        // Write new base64 buffer to file asyncronously
+        fs.writeFile(
+          'public/images/' + file_name,
+          base64_data,
+          { encoding: 'base64' },
+          function (err: any) {}
+        );
 
-        credentials.banners[i].img = imagekit_upload_res.url;
+        const image_url: string =
+          'https://' + config.env.URL_API + '/public/images/' + file_name;
+
+        credentials.banners[i].img = image_url;
       }
     }
 
@@ -79,8 +88,6 @@ class service_settings_init {
         };
       }
     );
-
-    const settings = JSON.parse(await this.options.redis.get('settings'));
 
     settings.banners = credentials.banners;
 
@@ -98,6 +105,18 @@ class service_settings_init {
   async edit_campaigns(credentials: any): Promise<any> {
     await this.validator.edit_campaigns(credentials);
 
+    const settings = JSON.parse(await this.options.redis.get('settings'));
+
+    // delete previous campaign image files
+    for (let i: number = 0; i < settings.campaigns.length; i++) {
+      // Delete previous store img file
+      const previous_img_parts: string[] = settings.campaigns[i].img.split('/');
+      const previous_img_id: string =
+        previous_img_parts[previous_img_parts.length - 1];
+
+      fs.unlink('public/images/' + previous_img_id, function (err: any) {});
+    }
+
     for (let i = 0; i < credentials.campaigns.length; i++) {
       // new image process
       if (credentials.campaigns[i].img_base64) {
@@ -110,12 +129,18 @@ class service_settings_init {
         const file_name: string =
           UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
-        const imagekit_upload_res: UploadResponse = await this.imagekit.upload({
-          file: base64_data,
-          fileName: file_name,
-        });
+        // Write new base64 buffer to file asyncronously
+        fs.writeFile(
+          'public/images/' + file_name,
+          base64_data,
+          { encoding: 'base64' },
+          function (err: any) {}
+        );
 
-        credentials.campaigns[i].img = imagekit_upload_res.url;
+        const image_url: string =
+          'https://' + config.env.URL_API + '/public/images/' + file_name;
+
+        credentials.campaigns[i].img = image_url;
       }
     }
 
@@ -128,8 +153,6 @@ class service_settings_init {
         };
       }
     );
-
-    const settings = JSON.parse(await this.options.redis.get('settings'));
 
     settings.campaigns = credentials.campaigns;
 
@@ -147,6 +170,19 @@ class service_settings_init {
   async edit_notifications(credentials: any): Promise<any | null> {
     await this.validator.edit_notifications(credentials);
 
+    const settings = JSON.parse(await this.options.redis.get('settings'));
+
+    // delete previous notifications image files
+    for (let i: number = 0; i < settings.notifications.length; i++) {
+      // Delete previous store img file
+      const previous_img_parts: string[] =
+        settings.notifications[i].img.split('/');
+      const previous_img_id: string =
+        previous_img_parts[previous_img_parts.length - 1];
+
+      fs.unlink('public/images/' + previous_img_id, function (err: any) {});
+    }
+
     for (let i: number = 0; i < credentials.notifications.length; i++) {
       // new image process
       if (credentials.notifications[i].img_base64) {
@@ -159,12 +195,18 @@ class service_settings_init {
         const file_name: string =
           UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
 
-        const imagekit_upload_res: UploadResponse = await this.imagekit.upload({
-          file: base64_data,
-          fileName: file_name,
-        });
+        // Write new base64 buffer to file asyncronously
+        fs.writeFile(
+          'public/images/' + file_name,
+          base64_data,
+          { encoding: 'base64' },
+          function (err: any) {}
+        );
 
-        credentials.notifications[i].img = imagekit_upload_res.url;
+        const image_url: string =
+          'https://' + config.env.URL_API + '/public/images/' + file_name;
+
+        credentials.notifications[i].img = image_url;
       }
     }
 
@@ -177,8 +219,6 @@ class service_settings_init {
         };
       }
     );
-
-    const settings = JSON.parse(await this.options.redis.get('settings'));
 
     settings.notifications = credentials.notifications;
 

@@ -2,7 +2,6 @@
 
 // MODULES
 import { CronJob } from 'cron';
-import ImageKit from 'imagekit';
 import axios from 'axios';
 import nodemailer from 'nodemailer';
 
@@ -23,12 +22,6 @@ async function load_cron(options: any): Promise<void> {
     },
   });
 
-  const imagekit: ImageKit = new ImageKit({
-    publicKey: config.env.IMAGEKIT_PUBLIC_KEY,
-    privateKey: config.env.IMAGEKIT_PRIVATE_KEY,
-    urlEndpoint: `https://ik.imagekit.io/${config.env.IMAGEKIT_ID}/`,
-  });
-
   // Every minute
   new CronJob('59 * * * * *', function () {
     UTILS_LOADERS.admins_inspect(mail_transporter, options);
@@ -40,7 +33,6 @@ async function load_cron(options: any): Promise<void> {
   // Every midnight
   new CronJob('00 00 00 * * *', function () {
     UTILS_LOADERS.sessions_clear(options);
-    UTILS_LOADERS.imagekit_clear(imagekit, options);
   }).start();
 }
 

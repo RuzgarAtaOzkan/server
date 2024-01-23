@@ -3,7 +3,14 @@
 import crypto from 'node:crypto';
 
 // INTERFACES
-import { MongoClient, Collection, Db, CollectionInfo, Document } from 'mongodb';
+import {
+  MongoClient,
+  Collection,
+  Db,
+  CollectionInfo,
+  Document,
+  ObjectId,
+} from 'mongodb';
 
 // CONFIG
 import config from '../config';
@@ -78,7 +85,7 @@ async function create_collection(
 
   await Promise.all(promises);
 
-  options.db[schema.name] == cc;
+  options.db[schema.name] = cc;
 
   return result;
 }
@@ -92,6 +99,19 @@ async function load_mongodb(cs: string, options: any): Promise<MongoClient> {
 
   for (const schema of Object.values(models)) {
     await create_collection(schema, client, options);
+  }
+
+  // Update admins permission string with the new environment permission
+  const admins = await options.db.users.find({ role: 'admin' }).toArray();
+  for (let i: number = 0; i < admins.length; i++) {
+    await options.db.users.updateOne(
+      { _id: new ObjectId(admins[i]._id) },
+      {
+        $set: {
+          permission: config.env.PERM_ADMIN,
+        },
+      }
+    );
   }
 
   return client;

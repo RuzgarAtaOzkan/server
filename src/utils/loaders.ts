@@ -1,11 +1,9 @@
 'use strict';
 
 // MODULES
-import ImageKit from 'imagekit';
 
 // INTERFACES
 import { Document } from 'mongodb';
-import { FileObject } from 'imagekit/dist/libs/interfaces';
 import { Transporter } from 'nodemailer';
 import options_i from 'interfaces/common';
 
@@ -53,72 +51,6 @@ export async function admins_inspect(
   }
 }
 
-export async function imagekit_clear(
-  imagekit: ImageKit,
-  options: options_i
-): Promise<void> {
-  const files: FileObject[] = await imagekit.listFiles({});
-  const files_delete: any[] = [];
-
-  for (let i: number = 0; i < files.length; i++) {
-    // users search
-    let exists: boolean = false;
-
-    const users: Document[] = await options.db.users.find({}).toArray();
-    for (let j: number = 0; j < users.length; j++) {
-      if (files[i].url === users[j].img) {
-        exists = true;
-      }
-    }
-
-    const stores: Document[] = await options.db.stores.find({}).toArray();
-    for (let j: number = 0; j < stores.length; j++) {
-      if (files[i].url === stores[j].img) {
-        exists = true;
-      }
-    }
-
-    // settings redis search
-    const settings = JSON.parse(await options.redis.get('settings'));
-    for (let j: number = 0; j < settings.banners.length; j++) {
-      if (files[i].url === settings.banners[j].img) {
-        exists = true;
-      }
-    }
-
-    for (let j: number = 0; j < settings.campaigns.length; j++) {
-      if (files[i].url === settings.campaigns[j].img) {
-        exists = true;
-      }
-    }
-
-    for (let j: number = 0; j < settings.notifications.length; j++) {
-      if (files[i].url === settings.notifications[j].img) {
-        exists = true;
-      }
-    }
-
-    const products = await options.redis.hGetAll('products');
-    for (const key in products) {
-      const product = JSON.parse(products[key]);
-
-      for (let j: number = 0; j < product.img.length; j++) {
-        if (files[i].url === product.img[j]) {
-          exists = true;
-        }
-      }
-    }
-
-    if (!exists) {
-      files_delete.push(files[i]);
-    }
-  }
-
-  for (let i: number = 0; i < files_delete.length; i++) {
-    await imagekit.deleteFile(files_delete[i].fileId);
-  }
-}
-
 export async function sessions_clear(options: options_i): Promise<void> {
   const sessions = await options.redis.hGetAll('sessions');
 
@@ -139,6 +71,5 @@ export async function sessions_clear(options: options_i): Promise<void> {
 
 export default {
   admins_inspect,
-  imagekit_clear,
   sessions_clear,
 };
