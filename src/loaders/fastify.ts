@@ -1,8 +1,6 @@
 'use strict';
 
 // MODULES
-import path from 'node:path';
-
 import Fastify, { FastifyInstance } from 'fastify';
 import fastify_cookie from '@fastify/cookie';
 import fastify_cors from '@fastify/cors';
@@ -30,8 +28,6 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
     },
   });
 
-  // fastify middleware plugin registrations
-
   await server.register(fastify_helmet, { global: true });
 
   await server.register(fastify_static, {
@@ -41,13 +37,13 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
   });
 
   await server.register(fastify_cors, {
-    credentials: true, // cookie acceptance
+    credentials: true,
     origin: [
-      // subdomains you want to consent for cors policy
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
       'https://' + config.env.URL_UI,
       'https://www.' + config.env.URL_UI,
       'https://admin.' + config.env.URL_UI,
-      'https://profile.' + config.env.URL_UI,
     ],
   });
 
@@ -64,6 +60,8 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
   // server.addHook('onRequest', async (request, reply) => {});
 
   bind_routes(server, options);
+
+  await server.listen({ port: Number(config.env.PORT), host: config.env.HOST });
 
   return server;
 }

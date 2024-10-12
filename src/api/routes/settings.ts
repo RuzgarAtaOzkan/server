@@ -1,19 +1,17 @@
 'use strict';
 
 // MODULES
-import path from 'node:path';
+import fs from 'fs';
 
 // INTERFACES
 import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { routes_i, services_i } from 'interfaces/api';
 
-// API > MIDDLEWARE
-
 // CONFIG
 import config from '../../config';
 
-function bind_static_routes(
+function bind_settings_routes(
   server: FastifyInstance,
   services: services_i,
   options: any
@@ -23,14 +21,18 @@ function bind_static_routes(
     // #title: GET PROFILE
     // #state: Public
     // #desc: Check if request has session and user, response: IProfile | null
-    public_image: {
+    settings_get: {
       method: 'GET',
-      url: config.endpoints.static_images,
+      url: '/v1' + config.endpoints.settings,
       handler: async function (request: any, reply: any) {
-        const path: string = 'public/images/' + request.params.id;
+        const credentials: any = {
+          ip: request.ip,
+        };
 
         try {
-          return reply.sendFile(path);
+          const settings = await services.settings.get_settings(credentials);
+
+          reply.send(settings);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -46,4 +48,4 @@ function bind_static_routes(
   return server;
 }
 
-export default bind_static_routes;
+export default bind_settings_routes;

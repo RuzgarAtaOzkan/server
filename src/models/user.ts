@@ -3,11 +3,25 @@
 // CONFIG
 import config from '../config';
 
-const schema = {
+const schema: any = {
   name: 'users',
   bsonType: config.types.object,
-  required: ['name', 'username', 'email', 'phone'],
-  unique_props: ['username', 'email'],
+  indexes: {
+    username: { unique: true },
+    email: { unique: true },
+    email_verification_token: {
+      unique: true,
+      partialFilterExpression: {
+        email_verification_token: { $type: 'string' },
+      },
+    },
+    password_reset_token: {
+      unique: true,
+      partialFilterExpression: { password_reset_token: { $type: 'string' } },
+    },
+    ref_code: { unique: true },
+    api_key: { unique: true },
+  },
   properties: {
     name: {
       bsonType: config.types.string,
@@ -51,10 +65,6 @@ const schema = {
       bsonType: config.types.string,
     },
 
-    favs: {
-      bsonType: config.types.string,
-    },
-
     ref_code: {
       bsonType: config.types.string,
     },
@@ -63,7 +73,11 @@ const schema = {
     },
 
     api_key: {
-      bsonType: [config.types.string, config.types.null],
+      bsonType: config.types.string,
+    },
+
+    wallet_address: {
+      bsonType: config.types.string,
     },
 
     role: {

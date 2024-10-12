@@ -6,38 +6,33 @@ import crypto from 'node:crypto';
 // CONFIG
 import config from '../config';
 
-export function str_remove_space(str: string, type?: string): string {
-  if (!str) {
-    return '';
-  }
+export async function sleep(ms: number = 1000): Promise<void> {
+  return new Promise((resolve: any, reject: any) => {
+    setTimeout(() => {
+      resolve();
+    }, ms);
+  });
+}
 
-  let str_final: string = '';
-
-  if (type === 'all') {
-    for (let i: number = 0; i < str.length; i++) {
-      if (str[i] === ' ') {
-        continue;
-      }
-
-      str_final += str[i];
-    }
-
-    return str_final;
-  }
+export function str_remove_space(str: string): string {
+  let result: string = '';
 
   for (let i: number = 0; i < str.length; i++) {
-    if (str[i] === ' ' && (str[i + 1] === ' ' || !str[i + 1])) {
+    // "  "
+    // if current character is empty and the next character is empty or null, remove it
+    if (str[i] === ' ' && (!str[i + 1] || str[i + 1] === ' ')) {
       continue;
     }
 
-    if (str_final === '' && str[i] === ' ' && str[i + 1] !== ' ') {
+    // scenario for strings who starts with empty chars,
+    if (result === '' && str[i] === ' ' && str[i + 1] !== ' ') {
       continue;
     }
 
-    str_final = str_final + str[i];
+    result = result + str[i];
   }
 
-  return str_final;
+  return result;
 }
 
 export function random({ length = 32, type = 'hex' }): string {
@@ -60,6 +55,7 @@ export function random({ length = 32, type = 'hex' }): string {
 }
 
 export default {
+  sleep,
   str_remove_space,
   random,
 };

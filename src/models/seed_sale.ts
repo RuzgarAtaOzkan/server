@@ -4,13 +4,22 @@
 import config from '../config';
 
 const schema = {
-  name: 'emails',
+  name: 'seed_sales',
   bsonType: config.types.object,
-  required: ['email'],
-  unique_props: ['email'],
+  required: ['hash'],
+  unique_props: ['hash'],
   properties: {
-    email: {
+    hash: {
       bsonType: config.types.string,
+    },
+    value: {
+      bsonType: config.types.string,
+    },
+    from: {
+      bsonType: config.types.string,
+    },
+    fulfilled: {
+      bsonType: config.types.bool,
     },
     created_at: {
       bsonType: config.types.date,

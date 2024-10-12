@@ -6,14 +6,10 @@ import { FastifyInstance } from 'fastify';
 import { routes_i, services_i } from 'interfaces/api';
 
 // API > MIDDLEWARE
-import mw from '../../middleware';
-import mw_auth from '../../middleware/auth';
-
-// API > SCHEMAS
-import schemas from '../../schemas';
+import mw_prevalidation from '../middleware/prevalidation';
 
 // CONFIG
-import config from '../../../config';
+import config from '../../config';
 
 function bind_auth_routes(
   server: FastifyInstance,
@@ -28,9 +24,8 @@ function bind_auth_routes(
     root: {
       method: 'GET',
       url: config.endpoints.auth_root,
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
-        const req = {
+        const req: object = {
           headers: { ...request.headers, cookie: undefined },
           id: request.id,
           ip: request.ip,
@@ -51,12 +46,6 @@ function bind_auth_routes(
     profile: {
       method: 'GET',
       url: '/v1' + config.endpoints.auth_profile,
-      schema: {
-        querystring: {
-          token: { type: config.types.string },
-        },
-      },
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           sid: request.cookies[config.env.SESSION_NAME],
@@ -78,12 +67,19 @@ function bind_auth_routes(
     profile_edit: {
       method: 'PUT',
       url: '/v1' + config.endpoints.auth_profile,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
+      preValidation: async function (request: any, reply: any) {
+        const is_auth: boolean = await mw_prevalidation.is_auth(
+          request,
+          options
+        );
+
+        if (!is_auth) {
+          reply.status(401).send('unauthorized');
+          return;
+        }
+
+        return;
       },
-      preValidation: mw.prevalidation(mw_auth.is_auth, options),
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.body, user: request.user };
 
@@ -102,12 +98,6 @@ function bind_auth_routes(
     signup: {
       method: 'POST',
       url: '/v1' + config.endpoints.auth_signup,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
-      },
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
         const credentials = {
           ...request.body,
@@ -119,7 +109,7 @@ function bind_auth_routes(
 
           // Sending confirmation mail to those who just signed up
           await services.mail.send_verification_link({
-            email: result.user.email,
+            email: result.profile.email,
             token: result.email_verification_token,
           });
 
@@ -127,10 +117,10 @@ function bind_auth_routes(
             .setCookie(config.env.SESSION_NAME, result.sid, {
               httpOnly: true,
               secure: true,
-              //host: config.env.URL_UI,
               path: '/',
+              //domain: config.env.URL_UI,
             })
-            .send(result.user);
+            .send(result.profile);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -142,12 +132,6 @@ function bind_auth_routes(
     signin: {
       method: 'POST',
       url: '/v1' + config.endpoints.auth_signin,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
-      },
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
         const credentials = {
           ...request.body,
@@ -161,10 +145,10 @@ function bind_auth_routes(
             .setCookie(config.env.SESSION_NAME, result.sid, {
               httpOnly: true,
               secure: true,
-              //host: config.env.URL_UI,
               path: '/',
+              //domain: config.env.URL_UI,
             })
-            .send(result.user);
+            .send(result.profile);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -176,7 +160,19 @@ function bind_auth_routes(
     signout: {
       method: 'GET',
       url: '/v1' + config.endpoints.auth_signout,
-      preValidation: mw.prevalidation(mw_auth.is_auth, options),
+      preValidation: async function (request: any, reply: any) {
+        const is_auth: boolean = await mw_prevalidation.is_auth(
+          request,
+          options
+        );
+
+        if (!is_auth) {
+          reply.status(401).send('unauthorized');
+          return;
+        }
+
+        return;
+      },
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           sid: request.cookies[config.env.SESSION_NAME],
@@ -198,12 +194,6 @@ function bind_auth_routes(
     password_reset: {
       method: 'POST',
       url: '/v1' + config.endpoints.auth_password_reset,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
-      },
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
         const credentials = {
           ...request.body,
@@ -225,12 +215,19 @@ function bind_auth_routes(
     password_change: {
       method: 'POST',
       url: '/v1' + config.endpoints.auth_password_change,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
+      preValidation: async function (request: any, reply: any) {
+        const is_auth: boolean = await mw_prevalidation.is_auth(
+          request,
+          options
+        );
+
+        if (!is_auth) {
+          reply.status(401).send('unauthorized');
+          return;
+        }
+
+        return;
       },
-      preValidation: mw.prevalidation(mw_auth.is_auth, options),
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
@@ -252,22 +249,35 @@ function bind_auth_routes(
     email_change: {
       method: 'POST',
       url: '/v1' + config.endpoints.auth_email_change,
-      schema: {
-        response: {
-          200: schemas.user,
-        },
+      preValidation: async function (request: any, reply: any) {
+        const is_auth: boolean = await mw_prevalidation.is_auth(
+          request,
+          options
+        );
+
+        if (!is_auth) {
+          reply.status(401).send('unauthorized');
+          return;
+        }
+
+        return;
       },
-      preValidation: mw.prevalidation(mw_auth.is_auth, options),
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
+
           user: request.user,
         };
 
         try {
-          const user = await services.auth.change_email(credentials);
+          const result = await services.auth.change_email(credentials);
 
-          reply.send(user);
+          await services.mail.send_verification_link({
+            email: credentials.email,
+            token: result.email_verification_token,
+          });
+
+          reply.send(result.profile);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -279,7 +289,6 @@ function bind_auth_routes(
     email_verify: {
       method: 'GET',
       url: '/v1' + config.endpoints.auth_email_verify,
-      preValidation: mw.prevalidation(null, options),
       handler: async function (request: any, reply: any) {
         try {
           const user = await services.auth.verify_email(request.params.token);

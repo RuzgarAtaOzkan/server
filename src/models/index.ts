@@ -2,11 +2,14 @@
 
 // MODELS
 import user from './user';
-import store from './store';
+import seed_sale from './seed_sale';
+import location from './location';
+import coupon from './coupon';
 
 const models = {
   user,
-  store,
+  location,
+  coupon,
 };
 
 export default models;

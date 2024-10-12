@@ -1,7 +1,5 @@
 'use strict';
 
-import crypto from 'node:crypto';
-
 // INTERFACES
 import {
   MongoClient,
@@ -48,12 +46,14 @@ async function create_collection(
     properties: schema.properties,
   };
 
+  /*
   if (schema.required.length) {
     $jsonSchema.required = schema.required;
   }
+  */
 
-  // Where magic happens.
-  // Creation of schemas and configurations in database. returns a collection
+  // where magic happens.
+  // creation of schemas and configurations in database. returns a collection
   const result: Collection = await db.createCollection(schema.name, {
     validator: {
       $jsonSchema,
@@ -61,31 +61,15 @@ async function create_collection(
   });
 
   // current collection
-  const cc: Collection = db.collection(schema.name);
+  const collection: Collection = db.collection(schema.name);
 
-  switch (schema.name) {
-    case 'premiums':
-      await cc.createIndex({ expire_at: 1 }, { expireAfterSeconds: 0 });
-      break;
+  // index registrations per property
+  for (const key in schema.indexes) {
+    const props: any = schema.indexes[key]; // index properties
+    await collection.createIndex({ [key]: 1 }, props);
   }
 
-  // for storing promises we create from the unique props individually;
-  let promises: Promise<string>[] = [];
-
-  if (schema.unique_props && schema.unique_props.length) {
-    // unique values we collect from the schema is used for creating unique indexes.
-    for (const key of schema.unique_props) {
-      const promise: Promise<string> = cc.createIndex(
-        { [key]: 1 },
-        { unique: true }
-      );
-      promises.push(promise);
-    }
-  }
-
-  await Promise.all(promises);
-
-  options.db[schema.name] = cc;
+  options.db[schema.name] = collection;
 
   return result;
 }
@@ -103,14 +87,11 @@ async function load_mongodb(cs: string, options: any): Promise<MongoClient> {
 
   // Update admins permission string with the new environment permission
   const admins = await options.db.users.find({ role: 'admin' }).toArray();
+
   for (let i: number = 0; i < admins.length; i++) {
     await options.db.users.updateOne(
-      { _id: new ObjectId(admins[i]._id) },
-      {
-        $set: {
-          permission: config.env.PERM_ADMIN,
-        },
-      }
+      { _id: admins[i]._id },
+      { $set: { permission: config.env.PERM_ADMIN } }
     );
   }
 

@@ -11,17 +11,23 @@ import { Document, InsertOneResult, ObjectId } from 'mongodb';
 import config from '../config';
 
 // UTILS
-import UTILS_SERVICES from '../utils/services';
-import UTILS_COMMON from '../utils/common';
+import {
+  validator_auth_init,
+  return_user_profile,
+  generate_api_key,
+  generate_email_verification_token,
+  create_user_doc,
+  create_session,
+} from '../utils/services';
+import { random } from '../utils/common';
 
 class service_auth_init {
-  private options: any;
-  private validator: any;
+  private readonly options: any;
+  private readonly validator: any;
 
   constructor(options: any) {
     this.options = options;
-
-    this.validator = new UTILS_SERVICES.validator_auth_init(options);
+    this.validator = new validator_auth_init(options);
   }
 
   async get_profile(credentials: any): Promise<any | null> {
@@ -29,53 +35,57 @@ class service_auth_init {
       return null;
     }
 
-    const session: string | null = await this.options.redis.hGet(
-      'sessions',
-      credentials.sid
+    const session: any = JSON.parse(
+      await this.options.redis.hGet('sessions', credentials.sid)
     );
 
     if (!session) {
       return null;
     }
 
-    const sparts: string[] = session.split('_');
-    const session_user_id: string = sparts[0];
-    const session_ip: string = sparts[1];
-    const session_time: string = sparts[2];
-
-    if (Number(session_time) + config.env.SESSION_LIFETIME_MS < Date.now()) {
+    if (
+      new Date(session.created_at).valueOf() + config.env.SESSION_LIFETIME_MS <
+      Date.now()
+    ) {
       await this.options.redis.hDel('sessions', credentials.sid);
       return null;
     }
 
-    if (session_ip !== credentials.ip) {
+    if (session.ip !== credentials.ip) {
       return null;
     }
 
     const user: Document = await this.options.db.users.findOne({
-      _id: new ObjectId(session_user_id),
+      _id: new ObjectId(session.user_id),
     });
 
     if (!user) {
       return null;
     }
 
-    const profile = UTILS_SERVICES.return_user_profile(user);
+    const profile = return_user_profile(user);
     return profile;
   }
 
   async edit_profile(credentials: any): Promise<any> {
     await this.validator.edit_profile(credentials, this.options);
 
-    let image_url: string = '';
+    let username_changed_at: Date | null = credentials.user.username_changed_at;
+    if (
+      credentials.username &&
+      credentials.username !== credentials.user.username
+    ) {
+      username_changed_at = new Date();
+    }
+
+    let img: string = '';
     if (credentials.img_base64) {
       const base64_buffer: string[] = credentials.img_base64.split(';base64,');
       const base64_type: string = base64_buffer[0];
       const base64_data: string = base64_buffer[1];
 
       const file_ext: string = base64_type.split('/')[1];
-      const file_name: string =
-        UTILS_COMMON.random({ length: 32 }) + '.' + file_ext;
+      const file_name: string = random({ length: 32 }) + '.' + file_ext;
 
       // File system integration
 
@@ -86,14 +96,16 @@ class service_auth_init {
       fs.unlink('public/images/' + previous_img_id, function (err: any) {});
 
       // Write new base64 buffer to file asynchronously
-      fs.writeFile(
-        'public/images/' + file_name,
-        base64_data,
-        { encoding: 'base64' },
-        function (err: any) {}
-      );
+      fs.writeFileSync('public/images/' + file_name, base64_data, {
+        encoding: 'base64',
+      });
 
-      image_url = config.env.URL_API + '/public/images/' + file_name;
+      img = 'https://' + config.env.URL_API + '/images/' + file_name;
+    }
+
+    let api_key: string = '';
+    if (credentials.api_key) {
+      api_key = await generate_api_key(this.options);
     }
 
     // update user credentials
@@ -101,31 +113,30 @@ class service_auth_init {
       { _id: credentials.user._id },
       {
         $set: {
-          name: credentials.name,
-          username: credentials.username,
+          name: credentials.name || credentials.user.name,
+          username: credentials.username || credentials.user.username,
+          username_changed_at: username_changed_at,
 
-          username_changed_at:
-            credentials.username !== credentials.user.username
-              ? new Date()
-              : credentials.user.username_changed_at,
+          phone: credentials.phone || credentials.user.phone,
+          img: img || credentials.user.img,
+          api_key: api_key || credentials.user.api_key,
+          wallet_address:
+            credentials.wallet_address || credentials.user.wallet_address,
 
-          phone: credentials.phone,
-
-          img: image_url ? image_url : credentials.user.img,
-
-          favs: credentials.favs,
+          updated_at: new Date(),
         },
       }
     );
 
-    credentials.user.name = credentials.name;
-    credentials.user.username = credentials.username;
-    credentials.user.phone = credentials.phone;
-    credentials.user.img = image_url ? image_url : credentials.user.img;
-    credentials.user.favs = credentials.favs;
+    credentials.user.name = credentials.name || credentials.user.name;
+    credentials.user.username =
+      credentials.username || credentials.user.username;
+    credentials.user.phone = credentials.phone || credentials.user.phone;
+    credentials.user.img = img || credentials.user.img;
+    credentials.user.api_key = api_key || credentials.user.api_key;
 
     // create client user to send it back to client to see the updated values.
-    const profile = UTILS_SERVICES.return_user_profile(credentials.user);
+    const profile = return_user_profile(credentials.user);
 
     return profile;
   }
@@ -133,23 +144,24 @@ class service_auth_init {
   async signup(credentials: any): Promise<any> {
     await this.validator.signup(credentials);
 
-    const doc = await UTILS_SERVICES.create_user_doc(credentials, this.options);
+    const doc = await create_user_doc(credentials, this.options);
 
     const insert_one_result: InsertOneResult =
       await this.options.db.users.insertOne(doc);
 
-    const sid: string = await UTILS_SERVICES.create_session(
+    const sid: string = await create_session(
       { user_id: insert_one_result.insertedId, ip: credentials.ip },
       this.options
     );
 
-    const profile = UTILS_SERVICES.return_user_profile({
+    const profile = return_user_profile({
       ...doc,
+
       _id: insert_one_result.insertedId,
     });
 
-    const result = {
-      user: profile,
+    const result: any = {
+      profile: profile,
       sid: sid,
       email_verification_token: doc.email_verification_token,
     };
@@ -160,13 +172,14 @@ class service_auth_init {
   async signin(credentials: any): Promise<any> {
     const user: Document = await this.validator.signin(credentials);
 
-    const sid: string = await UTILS_SERVICES.create_session(
+    const sid: string = await create_session(
       { user_id: user._id, ip: credentials.ip },
       this.options
     );
 
-    const profile = UTILS_SERVICES.return_user_profile(user);
-    const result = { user: profile, sid };
+    const profile = return_user_profile(user);
+    const result = { profile: profile, sid };
+
     return result;
   }
 
@@ -192,7 +205,7 @@ class service_auth_init {
 
     user.email_verified = true;
 
-    const profile = UTILS_SERVICES.return_user_profile(user);
+    const profile = return_user_profile(user);
 
     return profile;
   }
@@ -219,15 +232,15 @@ class service_auth_init {
       }
     );
 
-    // Delete user sessions
+    // delete user sessions
     const sessions = await this.options.redis.hGetAll('sessions');
     for (const key in sessions) {
-      if (sessions[key].includes(user._id.toString())) {
+      if (JSON.parse(sessions[key]).user_id === user._id.toString()) {
         this.options.redis.hDel('sessions', key);
       }
     }
 
-    const profile = UTILS_SERVICES.return_user_profile(user);
+    const profile = return_user_profile(user);
 
     return profile;
   }
@@ -248,7 +261,7 @@ class service_auth_init {
       }
     );
 
-    const profile = UTILS_SERVICES.return_user_profile(credentials.user);
+    const profile = return_user_profile(credentials.user);
 
     return profile;
   }
@@ -257,7 +270,7 @@ class service_auth_init {
     await this.validator.change_email(credentials, this.options);
 
     const email_verification_token: string =
-      await UTILS_SERVICES.generate_email_verification_token(this.options);
+      await generate_email_verification_token(this.options);
 
     await this.options.db.users.updateOne(
       { _id: credentials.user._id },
@@ -266,7 +279,7 @@ class service_auth_init {
           email: credentials.email,
           email_verification_token: email_verification_token,
           email_verification_token_exp_at: new Date(
-            Date.now() + config.times.one_hour_ms * 24
+            Date.now() + config.times.one_day_ms
           ),
           email_verified: false,
           updated_at: new Date(),
@@ -274,17 +287,17 @@ class service_auth_init {
       }
     );
 
-    await this.options.services.mail.send_verification_link({
-      email: credentials.email,
-      token: email_verification_token,
-    });
-
     credentials.user.email = credentials.email;
     credentials.user.email_verified = false;
 
-    const profile = UTILS_SERVICES.return_user_profile(credentials.user);
+    const profile: any = return_user_profile(credentials.user);
 
-    return profile;
+    const result: any = {
+      profile,
+      email_verification_token,
+    };
+
+    return result;
   }
 }
 

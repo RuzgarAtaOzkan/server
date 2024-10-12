@@ -3,3 +3,5 @@ build
 public
 logs.log
 *.log
+package-lock.json
+.env

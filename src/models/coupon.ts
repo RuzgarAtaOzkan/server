@@ -4,23 +4,15 @@
 import config from '../config';
 
 const schema = {
-  name: 'stores',
+  name: 'coupons',
   bsonType: config.types.object,
-  required: [],
-  unique_props: [],
+  indexes: {
+    code: { unique: true },
+  },
   properties: {
-    name: {
+    code: {
       bsonType: config.types.string,
     },
-
-    featured: {
-      bsonType: config.types.bool,
-    },
-
-    img: {
-      bsonType: config.types.string,
-    },
-
     created_at: {
       bsonType: config.types.date,
     },
