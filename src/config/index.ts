@@ -36,23 +36,6 @@ const config: config_i = {
 
     // settings
     settings: '/settings', // PUBLIC
-
-    // locations
-    locations: '/locations', // ADMIN
-    locations_available: '/locations/available', // PUBLIC
-    locations_prices: '/locations/prices', // PUBLIC
-    locations_open: '/locations/:hash', // PUBLIC
-
-    // coupons
-    coupons: '/coupons', // ADMIN
-
-    // blockchain
-    blockchain_tokens: '/tokens',
-    blockchain_audits: '/audits',
-    blockchain_factory: '/factory',
-    blockchain_swap_quote: '/swap/quote',
-    blockchain_swap_price: '/swap/price',
-    blockchain_seed_sales: '/seed-sales',
   },
   env: {
     PORT: process.env.PORT || '3001',
@@ -65,11 +48,11 @@ const config: config_i = {
     SESSION_NAME: process.env.SESSION_NAME || '',
     SESSION_LIFETIME_MS: 1000 * 60 * 60 * 24,
 
-    DB_CONN_STR: process.env.DB_CONN_STR || '',
+    DB_URL: process.env.DB_URL || '',
     DB_NAME: process.env.DB_NAME || '',
 
-    PERM_ADMIN: process.env.PERM_ADMIN || '',
-    PERM_USER: process.env.PERM_USER || '',
+    ROLE_KEY_ADMIN: process.env.ROLE_KEY_ADMIN || '',
+    ROLE_KEY_USER: process.env.ROLE_KEY_USER || '',
 
     EMAIL_HOST: process.env.EMAIL_HOST || '',
     EMAIL_USERNAME: process.env.EMAIL_USERNAME || '',
@@ -100,7 +83,6 @@ const config: config_i = {
     one_min_ms: 1000 * 60,
     one_hour_ms: 1000 * 60 * 60,
     one_day_ms: 1000 * 60 * 60 * 24,
-    one_hour_s: 3600,
   },
   types: {
     objectId: 'objectId',

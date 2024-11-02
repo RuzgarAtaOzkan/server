@@ -15,12 +15,11 @@ async function load_redis(options: any) {
   await client.flushAll();
   await client.flushDb();
 
-  const settings: string = JSON.stringify({
-    location_price: 70, // ($)
-    location_payment_address: '0x91f50347c7d1bd351bee7de3f60982cff0093b4d', // crypto wallet address to send money to
-  });
+  let settings: string | null = await client.get('settings');
 
-  await client.set('settings', settings);
+  if (!settings) {
+    await client.set('settings', JSON.stringify({}));
+  }
 
   options.redis = client;
 

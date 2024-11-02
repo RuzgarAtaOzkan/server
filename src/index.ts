@@ -28,17 +28,6 @@
  .   .       .      :  .   .: ::/  .  .::\
 */
 
-// MODULES
-import validator from 'validator';
-
-// LOADERS
 import load_server from './loaders';
 
-async function init(): Promise<void> {
-  // load_server returns a fastify instance with configured routes as well as mongodb database
-  await load_server();
-
-  //console.info(`🛡️  Server listening on port: ${config.env.PORT} 🛡️`);
-}
-
-init();
+load_server();

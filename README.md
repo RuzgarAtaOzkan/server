@@ -1,8 +1,6 @@
 Features:
 
     Secure Cookie Authentication for User Communication
-    0x.org API ready endpoints
-    coingecko.com tokens API ready endpoints
     Simple Admin-User Role System
     Simple User Reference System
     Media Upload through File System
@@ -27,8 +25,8 @@ $ # sudo npm install -g pm2 (optional but recommended)
 
 # Project installation
 
-$ git clone https://github.com/RuzgarAtaOzkan/linux-web-server.git
-$ cd ./linux-web-server
+$ git clone https://github.com/ruzgarataozkan/server.git
+$ cd ./server
 $ npm install
 $ npm run build
 $ npm run start
@@ -41,20 +39,20 @@ HOST=127.0.0.1
 NODE_ENV=prod
 
 SESSION_SECRET=SECURE_RANDOM_STRING
-SESSION_NAME=domain_sid
+SESSION_NAME=server_sid
 
-DB_CONN_STR=YOUR_MONGODB_CONNECTION_STRING
-DB_NAME=domain
+DB_URL=YOUR_MONGODB_CONNECTION_STRING
+DB_NAME=panpa
 
 PERM_ADMIN=SECURE_RANDOM_STRING
 PERM_USER=SECURE_RANDOM_STRING
 
 EMAIL_HOST=smtp.gmail.com
-EMAIL_USERNAME=mail@domain.com
+EMAIL_USERNAME=mail@server.com
 EMAIL_PASSWORD=123
 
-URL_API=api.domain.com
-URL_UI=domain.com
+URL_API=api.server.com
+URL_UI=server.com
 
 API_KEY_CAPTCHA=YOUR_HCAPTCHA_API_KEY
 

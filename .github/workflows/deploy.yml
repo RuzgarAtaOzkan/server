@@ -1,6 +1,6 @@
 # dont forget to update appleboy/ssh-action@{version}
 
-name: deploy linux-web-server
+name: deploy server
 on:
   push:
     branches: [master]
@@ -16,10 +16,10 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }} # User of the server you want to ssh into
           script: |
             ls
-            cd ./apps/linux-web-server
+            cd ./apps/server
             git fetch
             git pull origin master
             npm install
             npm audit fix
             npm run build
-            pm2 reload linux-web-server --update-env
+            pm2 reload server --update-env

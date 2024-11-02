@@ -46,7 +46,7 @@ export async function is_admin(request: any, options: any): Promise<boolean> {
 
   if (
     user.role !== config.roles.admin ||
-    user.permission !== config.env.PERM_ADMIN
+    user.role_key !== config.env.ROLE_KEY_ADMIN
   ) {
     return false;
   }

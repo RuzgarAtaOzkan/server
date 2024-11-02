@@ -1,8 +1,5 @@
 'use strict';
 
-// MODULES
-import path from 'node:path';
-
 // INTERFACES
 import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';

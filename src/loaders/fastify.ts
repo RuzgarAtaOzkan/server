@@ -2,9 +2,9 @@
 
 // MODULES
 import Fastify, { FastifyInstance } from 'fastify';
+import fastify_helmet from '@fastify/helmet';
 import fastify_cookie from '@fastify/cookie';
 import fastify_cors from '@fastify/cors';
-import fastify_helmet from '@fastify/helmet';
 import fastify_rate_limit from '@fastify/rate-limit';
 import fastify_static from '@fastify/static';
 
@@ -20,7 +20,7 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
   const server: FastifyInstance = Fastify({
     maxParamLength: 256, // url param length
     trustProxy: true, // for NGINX or any other proxy server
-    bodyLimit: 2097152, // no data more than 2mb is allowed in one request
+    bodyLimit: 1000000, // no data more than 1mb is allowed in one request
     logger: {
       // pino logger module by default
       level: 'info',

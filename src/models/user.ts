@@ -31,7 +31,7 @@ const schema: any = {
       bsonType: config.types.string,
     },
     username_changed_at: {
-      bsonType: [config.types.date, config.types.null],
+      bsonType: config.types.date,
     },
 
     email: {
@@ -44,11 +44,7 @@ const schema: any = {
       bsonType: [config.types.string, config.types.null],
     },
     email_verification_token_exp_at: {
-      bsonType: [config.types.date, config.types.null],
-    },
-
-    phone: {
-      bsonType: config.types.string,
+      bsonType: config.types.date,
     },
 
     password: {
@@ -58,10 +54,13 @@ const schema: any = {
       bsonType: [config.types.string, config.types.null],
     },
     password_reset_token_exp_at: {
-      bsonType: [config.types.date, config.types.null],
+      bsonType: config.types.date,
     },
 
-    img: {
+    role: {
+      enum: [config.roles.admin, config.roles.user],
+    },
+    role_key: {
       bsonType: config.types.string,
     },
 
@@ -72,22 +71,19 @@ const schema: any = {
       bsonType: [config.types.objectId, config.types.null],
     },
 
+    phone: {
+      bsonType: config.types.string,
+    },
+
+    img: {
+      bsonType: config.types.string,
+    },
+
     api_key: {
       bsonType: config.types.string,
     },
 
     wallet_address: {
-      bsonType: config.types.string,
-    },
-
-    role: {
-      enum: [config.roles.admin, config.roles.user],
-    },
-    permission: {
-      bsonType: config.types.string,
-    },
-
-    ip: {
       bsonType: config.types.string,
     },
 

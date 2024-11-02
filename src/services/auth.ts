@@ -70,7 +70,7 @@ class service_auth_init {
   async edit_profile(credentials: any): Promise<any> {
     await this.validator.edit_profile(credentials, this.options);
 
-    let username_changed_at: Date | null = credentials.user.username_changed_at;
+    let username_changed_at: Date = credentials.user.username_changed_at;
     if (
       credentials.username &&
       credentials.username !== credentials.user.username
@@ -117,7 +117,7 @@ class service_auth_init {
           username: credentials.username || credentials.user.username,
           username_changed_at: username_changed_at,
 
-          phone: credentials.phone || credentials.user.phone,
+          //phone: credentials.phone || credentials.user.phone,
           img: img || credentials.user.img,
           api_key: api_key || credentials.user.api_key,
           wallet_address:
@@ -154,11 +154,9 @@ class service_auth_init {
       this.options
     );
 
-    const profile = return_user_profile({
-      ...doc,
+    doc._id = insert_one_result.insertedId;
 
-      _id: insert_one_result.insertedId,
-    });
+    const profile = return_user_profile(doc);
 
     const result: any = {
       profile: profile,
@@ -197,7 +195,6 @@ class service_auth_init {
         $set: {
           email_verified: true,
           email_verification_token: null,
-          email_verification_token_exp_at: null,
           updated_at: new Date(),
         },
       }
@@ -226,7 +223,6 @@ class service_auth_init {
             .update(credentials.password)
             .digest('hex'),
           password_reset_token: null,
-          password_reset_token_exp_at: null,
           updated_at: new Date(),
         },
       }

@@ -14,7 +14,7 @@ import config from '../config';
 import { str_remove_space } from '../utils/common';
 
 // working principle of parse_cookie:
-// " test=123; domain_sid =  abc123  ;" => "abc123"
+// " bar=foo; domain_sid =  abc123  ;" => "abc123"
 function parse_cookie(
   cookie: string,
   name: string = config.env.SESSION_NAME
@@ -42,6 +42,8 @@ function parse_cookie(
     break;
   }
 
+  // index = "... domain_sid{@}"
+
   for (let i: number = index; i < cookie.length; i++) {
     if (value && (cookie[i] === ' ' || cookie[i] === ';')) {
       break;
@@ -66,10 +68,7 @@ async function validate_admin(
     return false;
   }
 
-  const sid: string = parse_cookie(
-    request.headers.cookie,
-    config.env.SESSION_NAME
-  );
+  const sid: string = parse_cookie(request.headers.cookie);
 
   const session: any = JSON.parse(await options.redis.hGet('sessions', sid));
 
@@ -77,11 +76,11 @@ async function validate_admin(
     return false;
   }
 
-  // expired session
-  if (
-    new Date(session.created_at).valueOf() + config.env.SESSION_LIFETIME_MS <
-    Date.now()
-  ) {
+  const expire_at: number =
+    new Date(session.created_at).valueOf() + config.env.SESSION_LIFETIME_MS;
+
+  if (expire_at < Date.now()) {
+    // expired session
     return false;
   }
 
@@ -91,7 +90,7 @@ async function validate_admin(
 
   if (
     user.role !== config.roles.admin ||
-    user.permission !== config.env.PERM_ADMIN
+    user.role_key !== config.env.ROLE_KEY_ADMIN
   ) {
     return false;
   }
@@ -112,10 +111,10 @@ async function load_socket(options: options_i): Promise<void> {
   const messages: any[] = [];
 
   // TODO: message params
-  const messages_limit: number = 500; // messages length can't be bigger then this
-  const messages_expiration_interval: number = config.times.one_day_ms * 3; // 3 days
-  const message_interval: number = 3000; // user can only send message once every (interval) seconds
-  const message_length: number = 120;
+  const MESSAGES_LIMIT: number = 1000; // messages length can't be bigger then this
+  const MESSAGES_EXP_INTERVAL: number = config.times.one_day_ms * 3; // 3 days
+  const MESSAGE_SEND_INTERVAL: number = 3000; // user can only send message once every (interval) seconds
+  const MESSAGE_LENGTH: number = 100;
 
   wss.on('connection', async function (socket: any, request: any) {
     socket.on('error', console.error);
@@ -126,8 +125,8 @@ async function load_socket(options: options_i): Promise<void> {
 
     //const ip: string = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-    socket.last_message_at = new Date(Date.now() - 3000);
     socket.index = users.length;
+    socket.last_message_at = new Date(Date.now() - MESSAGE_SEND_INTERVAL);
     socket.admin = is_admin;
 
     users.push(socket);
@@ -140,25 +139,25 @@ async function load_socket(options: options_i): Promise<void> {
     // offset becomes 5, then we start looping messages to assign them with + offset to move them into the beginning of the array
     // then we set the length of the messages to the limit
     // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  =>  [5, 6, 7, 8, 9]
-    if (messages.length > messages_limit) {
-      const offset: number = messages.length - messages_limit;
+    if (messages.length > MESSAGES_LIMIT) {
+      const offset: number = messages.length - MESSAGES_LIMIT;
 
-      for (let i: number = 0; i < messages_limit; i++) {
+      for (let i: number = 0; i < MESSAGES_LIMIT; i++) {
         messages[i] = messages[i + offset];
       }
 
-      messages.length = messages_limit;
+      messages.length = MESSAGES_LIMIT;
     }
 
-    // reshape array as only messages sent today, starts with oldest sent
-    // assume that 4th index is the first one sent in the last 3 days, other ones are created older than 3 days
+    // reshape array as only messages sent MESSAGES_EXP_INTERVAL, starts with oldest sent
+    // assume that 4th index is the first one sent in the last MESSAGES_EXP_INTERVAL days, other ones are created older than MESSAGES_EXP_INTERVAL days
     // create another for loop inside the main one that starts at 0, then assign them to i+j with reduced messages length which is the remaining messages (messages.length - i)
     // [0, 1, 2, 3, 4, 5, 6, 7, 8]  =>  [4, 5, 6, 7, 8]
     // first message index that sent in the last 3 days
     for (let i: number = 0; i < messages.length; i++) {
       if (
         Date.now() - messages[i].created_at.valueOf() <
-        messages_expiration_interval
+        MESSAGES_EXP_INTERVAL
       ) {
         for (let j: number = 0; j < messages.length - i; j++) {
           messages[j] = messages[i + j];
@@ -181,7 +180,7 @@ async function load_socket(options: options_i): Promise<void> {
         return;
       }
 
-      if (message.length > message_length) {
+      if (message.length > MESSAGE_LENGTH) {
         socket.send(
           JSON.stringify({ error: 'Göndermeye çalıştığınız mesaj çok uzun' })
         ); // message is too long
@@ -189,7 +188,10 @@ async function load_socket(options: options_i): Promise<void> {
         return;
       }
 
-      if (Date.now() - socket.last_message_at.valueOf() < message_interval) {
+      if (
+        Date.now() - socket.last_message_at.valueOf() <
+        MESSAGE_SEND_INTERVAL
+      ) {
         socket.send(
           JSON.stringify({
             error: 'Mesaj göndermeden önce birkaç saniye bekleyin',
@@ -215,7 +217,7 @@ async function load_socket(options: options_i): Promise<void> {
     });
 
     socket.on('close', function (data: any) {
-      // [0, 1, 2, 3, 4, 5]
+      // [0, 1, 2, 3, 4, 5] => [0, 1, 2, 4, 5]
       for (let i: number = socket.index; i < users.length; i++) {
         if (users[i + 1]) {
           users[i] = users[i + 1];

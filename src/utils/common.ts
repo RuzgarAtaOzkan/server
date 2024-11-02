@@ -54,8 +54,34 @@ export function random({ length = 32, type = 'hex' }): string {
   }
 }
 
+export function add_commas(value: number) {
+  const number: string = value.toString().split('.')[0];
+  const decimals: string = value.toString().split('.')[1];
+
+  let result: string = '';
+
+  for (let i: number = number.length - 1; i > -1; i--) {
+    result = number[i] + result;
+
+    if (result.replace(/,/g, '').length % 3 === 0) {
+      result = ',' + result;
+    }
+  }
+
+  if (result[0] === ',') {
+    result = result.replace(',', '');
+  }
+
+  if (decimals) {
+    return result + '.' + decimals;
+  }
+
+  return result;
+}
+
 export default {
   sleep,
   str_remove_space,
   random,
+  add_commas,
 };

@@ -11,10 +11,10 @@ import { options_i } from 'interfaces/common';
 import config from '../config';
 
 // LOADERS
-import load_fastify from './fastify';
-import load_mongodb from './mongodb';
-import load_cron from './cron';
 import load_redis from './redis';
+import load_mongodb from './mongodb';
+import load_fastify from './fastify';
+import load_cron from './cron';
 import load_socket from './socket';
 
 async function load_server(): Promise<void> {
@@ -43,7 +43,7 @@ async function load_server(): Promise<void> {
   console.info('Redis loaded... ✅');
 
   // configure mongodb
-  await load_mongodb(config.env.DB_CONN_STR, options);
+  await load_mongodb(options);
   console.info('Mongodb loaded... ✅');
 
   // We get the mongo client to pass in the fastify application loader to use in the routes

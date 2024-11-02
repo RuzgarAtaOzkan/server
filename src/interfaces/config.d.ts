@@ -18,20 +18,6 @@ export default interface config_i {
     readonly mail_send_password_reset_link: string;
 
     readonly settings: string;
-
-    readonly locations: string;
-    readonly locations_available: string;
-    readonly locations_open: string;
-    readonly locations_prices: string;
-
-    readonly coupons: string;
-
-    readonly blockchain_tokens: string;
-    readonly blockchain_factory: string;
-    readonly blockchain_audits: string;
-    readonly blockchain_swap_quote: string;
-    readonly blockchain_swap_price: string;
-    readonly blockchain_seed_sales: string;
   };
   readonly env: {
     readonly PORT: string;
@@ -43,11 +29,11 @@ export default interface config_i {
     readonly SESSION_NAME: string;
     readonly SESSION_LIFETIME_MS: number;
 
-    readonly DB_CONN_STR: string;
+    readonly DB_URL: string;
     readonly DB_NAME: string;
 
-    readonly PERM_ADMIN: string;
-    readonly PERM_USER: string;
+    readonly ROLE_KEY_ADMIN: string;
+    readonly ROLE_KEY_USER: string;
 
     readonly EMAIL_HOST: string;
     readonly EMAIL_USERNAME: string;
@@ -77,7 +63,6 @@ export default interface config_i {
     readonly one_min_ms: number;
     readonly one_hour_ms: number;
     readonly one_day_ms: number;
-    readonly one_hour_s: number;
   };
   readonly types: {
     readonly objectId: types_t;

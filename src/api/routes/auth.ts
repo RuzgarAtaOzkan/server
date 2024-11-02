@@ -99,7 +99,7 @@ function bind_auth_routes(
       method: 'POST',
       url: '/v1' + config.endpoints.auth_signup,
       handler: async function (request: any, reply: any) {
-        const credentials = {
+        const credentials: any = {
           ...request.body,
           ip: request.ip,
         };
@@ -290,8 +290,10 @@ function bind_auth_routes(
       method: 'GET',
       url: '/v1' + config.endpoints.auth_email_verify,
       handler: async function (request: any, reply: any) {
+        const credentials: any = { token: request.params.token };
+
         try {
-          const user = await services.auth.verify_email(request.params.token);
+          const user = await services.auth.verify_email(credentials);
 
           reply.send(user);
         } catch (error) {

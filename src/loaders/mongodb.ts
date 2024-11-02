@@ -74,9 +74,9 @@ async function create_collection(
   return result;
 }
 
-async function load_mongodb(cs: string, options: any): Promise<MongoClient> {
+async function load_mongodb(options: any): Promise<MongoClient> {
   // Create a new MongoClient
-  const client: MongoClient = new MongoClient(cs);
+  const client: MongoClient = new MongoClient(config.env.DB_URL);
   await client.connect();
 
   options.db = client.db(config.env.DB_NAME);
@@ -85,13 +85,13 @@ async function load_mongodb(cs: string, options: any): Promise<MongoClient> {
     await create_collection(schema, client, options);
   }
 
-  // Update admins permission string with the new environment permission
+  // Update admins role keys string with the new environment ROLE_KEY_ADMIN
   const admins = await options.db.users.find({ role: 'admin' }).toArray();
 
   for (let i: number = 0; i < admins.length; i++) {
     await options.db.users.updateOne(
       { _id: admins[i]._id },
-      { $set: { permission: config.env.PERM_ADMIN } }
+      { $set: { role_key: config.env.ROLE_KEY_ADMIN } }
     );
   }
 
