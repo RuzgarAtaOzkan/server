@@ -117,7 +117,7 @@ class service_auth_init {
           username: credentials.username || credentials.user.username,
           username_changed_at: username_changed_at,
 
-          //phone: credentials.phone || credentials.user.phone,
+          phone: credentials.phone || credentials.user.phone,
           img: img || credentials.user.img,
           api_key: api_key || credentials.user.api_key,
           wallet_address:
@@ -134,6 +134,8 @@ class service_auth_init {
     credentials.user.phone = credentials.phone || credentials.user.phone;
     credentials.user.img = img || credentials.user.img;
     credentials.user.api_key = api_key || credentials.user.api_key;
+    credentials.user.wallet_address =
+      credentials.wallet_address || credentials.user.wallet_address;
 
     // create client user to send it back to client to see the updated values.
     const profile = return_user_profile(credentials.user);
