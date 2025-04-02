@@ -1,61 +1,58 @@
 'use strict';
 
 // INTERFACES
-import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { routes_i, services_i } from 'interfaces/api';
+import { options_i } from 'interfaces/common';
 
 // API > MIDDLEWARE
-import mw_prevalidation from '../middleware/prevalidation';
+import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
 
-function bind_auth_routes(
+function bind_user_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: options_i
 ): FastifyInstance {
   // @ Route Options Area
   const routes: routes_i = {
     // #title: GET PROFILE
     // #state: Public
     // #desc: Check if request has session and user, response: IProfile | null
-    root: {
-      method: 'GET',
-      url: config.endpoints.auth_root,
-      handler: async function (request: any, reply: any) {
-        const req: object = {
-          headers: { ...request.headers, cookie: undefined },
-          id: request.id,
-          ip: request.ip,
-          hostname: request.hostname,
-          protocol: request.protocol,
-          method: request.method,
-          url: request.url,
-          original_url: request.originalUrl,
-        };
 
-        try {
-          reply.send(req);
-        } catch (err: any) {
-          reply.status(422).send(err);
-        }
-      },
-    },
     profile: {
       method: 'GET',
-      url: '/v1' + config.endpoints.auth_profile,
+      url: '/v1' + config.endpoint_user_profile,
       handler: async function (request: any, reply: any) {
         const credentials: any = {
-          sid: request.cookies[config.env.SESSION_NAME],
+          sid: request.cookies[config.ENV_SESSION_NAME],
           ip: request.ip,
         };
 
         try {
-          const profile = await services.auth.get_profile(credentials);
+          const result: any | null = await services.user.get_profile(
+            credentials
+          );
 
-          reply.send(profile);
+          if (result === null) {
+            return reply.send(null);
+          }
+
+          // result.cookie_value is not changed, result.cookie_expires renewed
+
+          reply
+            .setCookie(config.ENV_SESSION_NAME, result.cookie_value, {
+              sameSite: 'none',
+              // domain: config.ENV_URL_UI.split("://")[1]
+              httpOnly: true,
+              secure: true,
+              path: '/',
+              expires: result.cookie_expires,
+              priority: 'high',
+            })
+            .send(result.profile);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -64,27 +61,17 @@ function bind_auth_routes(
     // #title: EDIT PROFILE
     // #state: Private
     // #desc: Allow signed in user to edit its profile credentials.
-    profile_edit: {
-      method: 'PUT',
-      url: '/v1' + config.endpoints.auth_profile,
-      preValidation: async function (request: any, reply: any) {
-        const is_auth: boolean = await mw_prevalidation.is_auth(
-          request,
-          options
-        );
-
-        if (!is_auth) {
-          reply.status(401).send('unauthorized');
-          return;
-        }
-
-        return;
+    profile_patch: {
+      method: 'PATCH',
+      url: '/v1' + config.endpoint_user_profile,
+      preValidation: async function (request, reply): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.body, user: request.user };
 
         try {
-          const result = await services.auth.edit_profile(credentials);
+          const result = await services.user.edit_profile(credentials);
 
           reply.send(result);
         } catch (err: any) {
@@ -97,28 +84,31 @@ function bind_auth_routes(
     // #desc: Signs the user to the database if their credentials is valid and give them a session id.
     signup: {
       method: 'POST',
-      url: '/v1' + config.endpoints.auth_signup,
+      url: '/v1' + config.endpoint_user_signup,
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
+
           ip: request.ip,
         };
 
         try {
-          const result = await services.auth.signup(credentials);
+          const result = await services.user.signup(credentials);
 
-          // Sending confirmation mail to those who just signed up
           await services.mail.send_verification_link({
             email: result.profile.email,
-            token: result.email_verification_token,
+            code: result.email_verification_code,
           });
 
           reply
-            .setCookie(config.env.SESSION_NAME, result.sid, {
+            .setCookie(config.ENV_SESSION_NAME, result.cookie_value, {
+              sameSite: 'none',
+              // domain: config.ENV_URL_UI.split("://")[1]
               httpOnly: true,
               secure: true,
               path: '/',
-              //domain: config.env.URL_UI,
+              expires: result.cookie_expires,
+              priority: 'high',
             })
             .send(result.profile);
         } catch (err: any) {
@@ -131,7 +121,7 @@ function bind_auth_routes(
     // #desc: Sign users in and give them a session id.
     signin: {
       method: 'POST',
-      url: '/v1' + config.endpoints.auth_signin,
+      url: '/v1' + config.endpoint_user_signin,
       handler: async function (request: any, reply: any) {
         const credentials = {
           ...request.body,
@@ -139,14 +129,17 @@ function bind_auth_routes(
         };
 
         try {
-          const result = await services.auth.signin(credentials);
+          const result = await services.user.signin(credentials);
 
           reply
-            .setCookie(config.env.SESSION_NAME, result.sid, {
+            .setCookie(config.ENV_SESSION_NAME, result.cookie_value, {
+              sameSite: 'none',
+              // domain: config.ENV_URL_UI.split("://")[1]
               httpOnly: true,
               secure: true,
               path: '/',
-              //domain: config.env.URL_UI,
+              expires: result.cookie_expires,
+              priority: 'high',
             })
             .send(result.profile);
         } catch (err: any) {
@@ -159,30 +152,22 @@ function bind_auth_routes(
     // #desc: Sign users out and remove their session id.
     signout: {
       method: 'GET',
-      url: '/v1' + config.endpoints.auth_signout,
-      preValidation: async function (request: any, reply: any) {
-        const is_auth: boolean = await mw_prevalidation.is_auth(
-          request,
-          options
-        );
-
-        if (!is_auth) {
-          reply.status(401).send('unauthorized');
-          return;
-        }
-
-        return;
+      url: '/v1' + config.endpoint_user_signout,
+      preValidation: async function (request, reply): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
         const credentials: any = {
-          sid: request.cookies[config.env.SESSION_NAME],
+          sid: request.cookies[config.ENV_SESSION_NAME],
           user: request.user,
         };
 
         try {
-          await services.auth.signout(credentials);
+          const result: boolean = await services.user.signout(credentials);
 
-          reply.clearCookie(config.env.SESSION_NAME, { path: '/' }).send(true);
+          reply
+            .clearCookie(config.ENV_SESSION_NAME, { path: '/' })
+            .send(result);
         } catch (err: any) {
           reply.status(422).send(err);
         }
@@ -190,18 +175,18 @@ function bind_auth_routes(
     },
     // #title: RESET PASSWORD
     // #state: Public
-    // #desc: Resets users password by sending token to the user with the specified email.
+    // #desc: resets users password by sending code to the user with the specified email.
     password_reset: {
       method: 'POST',
-      url: '/v1' + config.endpoints.auth_password_reset,
+      url: '/v1' + config.endpoint_user_password_reset,
       handler: async function (request: any, reply: any) {
         const credentials = {
-          ...request.body,
-          token: request.params.token,
+          password: request.body.password,
+          code: request.body.code,
         };
 
         try {
-          const user = await services.auth.reset_password(credentials);
+          const user = await services.user.reset_password(credentials);
 
           reply.send(user);
         } catch (err: any) {
@@ -214,28 +199,19 @@ function bind_auth_routes(
     // #desc: Changes users password with authentication
     password_change: {
       method: 'POST',
-      url: '/v1' + config.endpoints.auth_password_change,
-      preValidation: async function (request: any, reply: any) {
-        const is_auth: boolean = await mw_prevalidation.is_auth(
-          request,
-          options
-        );
-
-        if (!is_auth) {
-          reply.status(401).send('unauthorized');
-          return;
-        }
-
-        return;
+      url: '/v1' + config.endpoint_user_password_change,
+      preValidation: async function (request, reply): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
+
           user: request.user,
         };
 
         try {
-          const user = await services.auth.change_password(credentials);
+          const user = await services.user.change_password(credentials);
 
           reply.send(user);
         } catch (err: any) {
@@ -248,33 +224,22 @@ function bind_auth_routes(
     // #desc: Sends a link to the users new email, after click the link in the new email it resets and make that email the new one .
     email_change: {
       method: 'POST',
-      url: '/v1' + config.endpoints.auth_email_change,
-      preValidation: async function (request: any, reply: any) {
-        const is_auth: boolean = await mw_prevalidation.is_auth(
-          request,
-          options
-        );
-
-        if (!is_auth) {
-          reply.status(401).send('unauthorized');
-          return;
-        }
-
-        return;
+      url: '/v1' + config.endpoint_user_email_change,
+      preValidation: async function (request, reply): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
-
           user: request.user,
         };
 
         try {
-          const result = await services.auth.change_email(credentials);
+          const result = await services.user.change_email(credentials);
 
           await services.mail.send_verification_link({
-            email: credentials.email,
-            token: result.email_verification_token,
+            email: result.profile.email,
+            code: result.email_verification_code,
           });
 
           reply.send(result.profile);
@@ -285,15 +250,15 @@ function bind_auth_routes(
     },
     // #title: VERIFY EMAIL
     // #state: Private
-    // #desc: Verifies user's email by sending token to the specified email
+    // #desc: Verifies user's email by sending code to the specified email
     email_verify: {
       method: 'GET',
-      url: '/v1' + config.endpoints.auth_email_verify,
+      url: '/v1' + config.endpoint_user_email_verify,
       handler: async function (request: any, reply: any) {
-        const credentials: any = { token: request.params.token };
+        const credentials: any = { code: request.params.code };
 
         try {
-          const user = await services.auth.verify_email(credentials);
+          const user = await services.user.verify_email(credentials);
 
           reply.send(user);
         } catch (error) {
@@ -311,4 +276,4 @@ function bind_auth_routes(
   return server;
 }
 
-export default bind_auth_routes;
+export default bind_user_routes;

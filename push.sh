@@ -22,8 +22,6 @@ echo "
       MNNNNO!    PPPPPPPPP    MMNON!
          OO!                   ON!
 
-
-
 ██████╗ ██╗   ██╗███████╗██╗  ██╗██╗███╗   ██╗ ██████╗          
 ██╔══██╗██║   ██║██╔════╝██║  ██║██║████╗  ██║██╔════╝          
 ██████╔╝██║   ██║███████╗███████║██║██╔██╗ ██║██║  ███╗         
@@ -33,14 +31,10 @@ echo "
 "
 
 git status
-
 git add .
 
 echo "Please enter your commit message"
 read commit_message
 
 git commit -m "$commit_message"
-
-git push origin main
-
-
+git push origin master

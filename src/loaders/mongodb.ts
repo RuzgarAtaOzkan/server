@@ -9,6 +9,7 @@ import {
   Document,
   ObjectId,
 } from 'mongodb';
+import { options_i } from 'interfaces/common';
 
 // CONFIG
 import config from '../config';
@@ -23,7 +24,7 @@ async function create_collection(
   client: MongoClient,
   options: any
 ): Promise<Collection | null> {
-  const db: Db = client.db(config.env.DB_NAME);
+  const db: Db = client.db(config.ENV_DB_NAME);
 
   // Listing all the collections in the database and convert them to array
   // to check if there is any conflict on collection names.
@@ -41,11 +42,6 @@ async function create_collection(
     return null;
   }
 
-  const $jsonSchema: any = {
-    bsonType: schema.bsonType,
-    properties: schema.properties,
-  };
-
   /*
   if (schema.required.length) {
     $jsonSchema.required = schema.required;
@@ -56,7 +52,10 @@ async function create_collection(
   // creation of schemas and configurations in database. returns a collection
   const result: Collection = await db.createCollection(schema.name, {
     validator: {
-      $jsonSchema,
+      $jsonSchema: {
+        bsonType: schema.bsonType,
+        properties: schema.properties,
+      },
     },
   });
 
@@ -74,12 +73,29 @@ async function create_collection(
   return result;
 }
 
-async function load_mongodb(options: any): Promise<MongoClient> {
+export async function load_mongodb(options: options_i): Promise<MongoClient> {
   // Create a new MongoClient
-  const client: MongoClient = new MongoClient(config.env.DB_URL);
-  await client.connect();
+  const client: MongoClient = new MongoClient(config.ENV_DB_URL);
 
-  options.db = client.db(config.env.DB_NAME);
+  client.on('error', (err: any) => {});
+
+  try {
+    //throw { message: 'a ECONNREFUSED' };
+    await client.connect();
+  } catch (err: any) {
+    const group: string = err.message.split(' ')[1];
+    const port: number = Number(config.ENV_DB_URL.split(':')[2]);
+
+    console.info(
+      `[  \x1b[31mERROR\x1b[0m  ] MongoDB ${group} (PORT: \x1b[38;2;255;165;0m${port}\x1b[0m)\n`
+    );
+
+    console.info('            Debug: \x1b[1msystemctl status mongod\x1b[0m\n');
+
+    process.exit(1);
+  }
+
+  options.db = client.db(config.ENV_DB_NAME);
 
   for (const schema of Object.values(models)) {
     await create_collection(schema, client, options);
@@ -89,9 +105,9 @@ async function load_mongodb(options: any): Promise<MongoClient> {
   const admins = await options.db.users.find({ role: 'admin' }).toArray();
 
   for (let i: number = 0; i < admins.length; i++) {
-    await options.db.users.updateOne(
+    options.db.users.updateOne(
       { _id: admins[i]._id },
-      { $set: { role_key: config.env.ROLE_KEY_ADMIN } }
+      { $set: { role_key: config.ENV_ROLE_KEY_ADMIN } }
     );
   }
 

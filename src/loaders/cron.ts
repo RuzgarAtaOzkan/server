@@ -1,95 +1,137 @@
 'use strict';
 
 // MODULES
+import fs from 'node:fs';
+import { execSync } from 'node:child_process';
 import { CronJob } from 'cron';
-import axios from 'axios';
-import nodemailer, { Transporter } from 'nodemailer';
 
 // INTERFACES
 import { options_i } from 'interfaces/common';
-import { Document } from 'mongodb';
-import { FastifyInstance } from 'fastify';
 
 // CONFIG
 import config from '../config';
 
-async function admins_inspect(
-  server: FastifyInstance,
-  options: options_i
+async function mongodb_backup(
+  path: string = '/var/backups/' + config.ENV_DB_NAME
 ): Promise<void> {
-  const transporter = nodemailer.createTransport({
-    host: config.env.EMAIL_HOST,
-    port: 465,
-    secure: true,
-    auth: {
-      user: config.env.EMAIL_USERNAME,
-      pass: config.env.EMAIL_PASSWORD,
-    },
-  });
-
-  const squery: object = { role: config.roles.admin };
-  const admins: Document[] = await options.db.users.find(squery).toArray();
-
-  if (admins.length > 1) {
-    const user_list = admins.map((curr: Document, index: number) => {
-      return (
-        '<br>_id: ' +
-        curr._id.toString() +
-        '<br>username: ' +
-        curr.username +
-        '<br>email: ' +
-        curr.email +
-        '<br>============'
-      );
-    });
-
-    const data: any = {
-      from: config.env.EMAIL_USERNAME,
-      to: 'uzayloncasi@gmail.com', // to property represents the emails that will be sent emails to.
-      subject: config.env.DB_NAME + ' ADMIN ROLE BREACH!!!',
-      html:
-        config.env.DB_NAME +
-        ' backend has been shutdown due to admin role breach. There are currently more than 1 admin in the system and requires immediate attention.<br><br> The users who have admin role are listed below.<br><br>' +
-        user_list,
-    };
-
-    transporter.sendMail(data);
-
-    setTimeout(function () {
-      server.close();
-    }, 3000);
+  if (fs.existsSync(path) === false) {
+    fs.mkdirSync(path);
   }
-}
 
-async function sessions_clear(options: options_i): Promise<void> {
-  const sessions = await options.redis.hGetAll('sessions');
+  // name of the incoming backup folder (2025-04-01)
+  const name: string = new Date().toISOString().split('T')[0];
 
-  for (const key in sessions) {
-    const session: any = JSON.parse(sessions[key]);
+  // previous backups
+  const backups: string[] = fs.readdirSync(path);
 
-    const expire_at: number =
-      new Date(session.created_at).valueOf() +
-      Number(config.env.SESSION_LIFETIME_MS);
+  // sort by date
+  for (let i: number = 0; i < backups.length; i++) {
+    for (let j: number = 0; j < backups.length; j++) {
+      if (backups[j + 1] === undefined) {
+        continue;
+      }
 
-    if (expire_at < Date.now()) {
-      await options.redis.hDel('sessions', key);
+      const directory: boolean = fs
+        .statSync(path + '/' + backups[j])
+        .isDirectory();
+
+      const directory_next: boolean = fs
+        .statSync(path + '/' + backups[j + 1])
+        .isDirectory();
+
+      if (directory === false || directory_next === false) {
+        continue;
+      }
+
+      if (
+        new Date(backups[j]).toString() === 'Invalid Date' ||
+        new Date(backups[j + 1]).toString() === 'Invalid Date'
+      ) {
+        continue;
+      }
+
+      const current: number = new Date(backups[j]).valueOf();
+      const next: number = new Date(backups[j + 1]).valueOf();
+
+      const current_name: string = backups[j];
+      const next_name: string = backups[j + 1];
+
+      if (current < next) {
+        backups[j] = next_name;
+        backups[j + 1] = current_name;
+      }
     }
   }
+
+  // remove backups older then 1 month
+  const limit: number = 30;
+  let limit_ctr: number = 0;
+
+  for (let i: number = 0; i < backups.length; i++) {
+    const directory: boolean = fs
+      .statSync(path + '/' + backups[i])
+      .isDirectory();
+
+    if (directory === false) {
+      continue;
+    }
+
+    if (new Date(backups[i]).toString() === 'Invalid Date') {
+      continue;
+    }
+
+    if (limit_ctr >= limit) {
+      fs.rmSync(path + '/' + backups[i], {
+        recursive: true,
+        force: true,
+      });
+
+      continue;
+    }
+
+    limit_ctr++;
+  }
+
+  // mongodump terminal command
+  const command: string = `mongodump --db=${config.ENV_DB_NAME} --out=${
+    path + '/' + name
+  }`;
+
+  // execute with node child process
+  const stdout = execSync(command);
+
+  // copy files from /var/backups/server/2025-04-01/server => /var/backups/server/2025-04-01
+  const files = fs.readdirSync(path + '/' + name + '/' + config.ENV_DB_NAME);
+
+  for (let i: number = 0; i < files.length; i++) {
+    const source: string =
+      path + '/' + name + '/' + config.ENV_DB_NAME + '/' + files[i];
+
+    const destination: string = path + '/' + name + '/' + files[i];
+
+    fs.copyFileSync(source, destination);
+  }
+
+  fs.rmSync(path + '/' + name + '/' + config.ENV_DB_NAME, {
+    recursive: true,
+    force: true,
+  });
 }
 
-async function load_cron(server: FastifyInstance, options: any): Promise<void> {
-  // Every minute
-  new CronJob('59 * * * * *', function () {
-    admins_inspect(server, options);
-  }).start();
+export function load_cron(options: options_i): void {
+  // every 9 seconds
+  new CronJob('*/9 * * * * *', function () {}).start();
 
-  // Every hour
-  new CronJob('00 59 * * * *', function () {
-    sessions_clear(options);
-  }).start();
+  // every minute
+  new CronJob('59 * * * * *', function () {}).start();
 
-  // Every midnight
-  new CronJob('00 00 00 * * *', function () {}).start();
+  // every hour
+  new CronJob('00 59 * * * *', function () {}).start();
+
+  // every midnight (UTC)
+  new CronJob('00 00 00 * * *', function () {
+    mongodb_backup();
+  }).start();
 }
 
 export default load_cron;

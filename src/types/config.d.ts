@@ -34,4 +34,4 @@ export type types_t =
 /**
  *  roles
  */
-export type roles_t = 'admin' | 'user';
+export type roles_t = 'user' | 'admin';

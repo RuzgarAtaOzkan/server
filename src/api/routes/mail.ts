@@ -1,11 +1,12 @@
 'use strict';
 
-// TYPES
+// INTERFACES
 import { FastifyInstance } from 'fastify';
 import { routes_i, services_i } from 'interfaces/api';
+import { options_i } from 'interfaces/common';
 
 // API > MIDDLEWARE
-import mw_prevalidation from '../middleware/prevalidation';
+import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
@@ -13,29 +14,24 @@ import config from '../../config';
 function bind_mail_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: options_i
 ): FastifyInstance {
   // @ Route Options Area
   const routes: routes_i = {
-    send_verification_link: {
+    mail_verification_link: {
       method: 'POST',
-      url: '/v1' + config.endpoints.mail_send_verification_link,
-      preValidation: async function (request: any, reply: any) {
-        const is_auth: boolean = await mw_prevalidation.is_auth(
-          request,
-          options
-        );
-
-        if (!is_auth) {
-          reply.status(401).send('unauthorized');
-          return;
-        }
-
-        return;
+      url: '/v1' + config.endpoint_mail_verification_link,
+      preValidation: async function (request, reply): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
+        const credentials: any = {
+          email: request.body.email,
+          user: request.user,
+        };
+
         try {
-          await services.mail.resend_verification_link(request.body.email);
+          await services.mail.resend_verification_link(credentials);
 
           reply.send(true);
         } catch (error) {
@@ -44,12 +40,16 @@ function bind_mail_routes(
       },
     },
 
-    send_password_reset_link: {
+    mail_password_reset_link: {
       method: 'POST',
-      url: '/v1' + config.endpoints.mail_send_password_reset_link,
+      url: '/v1' + config.endpoint_mail_password_reset_link,
       handler: async function (request: any, reply: any) {
+        const credentials: any = {
+          email: request.body.email,
+        };
+
         try {
-          await services.mail.send_password_reset_link(request.body.email);
+          await services.mail.send_password_reset_link(credentials);
 
           reply.send(true);
         } catch (err: any) {

@@ -28,6 +28,7 @@
  .   .       .      :  .   .: ::/  .  .::\
 */
 
-import load_server from './loaders';
+// LOADERS
+import init from './loaders';
 
-load_server();
+init();

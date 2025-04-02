@@ -5,93 +5,85 @@ import config from '../config';
 
 const schema: any = {
   name: 'users',
-  bsonType: config.types.object,
+  bsonType: config.type_object,
   indexes: {
     username: { unique: true },
     email: { unique: true },
-    email_verification_token: {
-      unique: true,
-      partialFilterExpression: {
-        email_verification_token: { $type: 'string' },
-      },
-    },
-    password_reset_token: {
-      unique: true,
-      partialFilterExpression: { password_reset_token: { $type: 'string' } },
-    },
+    email_verification_code: { unique: true },
+    password_reset_code: { unique: true },
     ref_code: { unique: true },
-    api_key: { unique: true },
   },
   properties: {
     name: {
-      bsonType: config.types.string,
+      bsonType: config.type_string,
     },
 
     username: {
-      bsonType: config.types.string,
+      bsonType: config.type_string,
     },
     username_changed_at: {
-      bsonType: config.types.date,
+      bsonType: config.type_date,
     },
 
     email: {
-      bsonType: config.types.string,
+      bsonType: config.type_string,
     },
     email_verified: {
-      bsonType: config.types.bool,
+      bsonType: config.type_bool,
     },
-    email_verification_token: {
-      bsonType: [config.types.string, config.types.null],
-    },
-    email_verification_token_exp_at: {
-      bsonType: config.types.date,
+    email_verification_code: {
+      bsonType: config.type_string,
     },
 
     password: {
-      bsonType: config.types.string,
+      bsonType: config.type_string,
     },
-    password_reset_token: {
-      bsonType: [config.types.string, config.types.null],
-    },
-    password_reset_token_exp_at: {
-      bsonType: config.types.date,
-    },
-
-    role: {
-      enum: [config.roles.admin, config.roles.user],
-    },
-    role_key: {
-      bsonType: config.types.string,
-    },
-
-    ref_code: {
-      bsonType: config.types.string,
-    },
-    ref_from: {
-      bsonType: [config.types.objectId, config.types.null],
-    },
-
-    phone: {
-      bsonType: config.types.string,
+    password_reset_code: {
+      bsonType: config.type_string,
     },
 
     img: {
-      bsonType: config.types.string,
+      bsonType: config.type_string,
+    },
+    phone: {
+      bsonType: config.type_string,
     },
 
-    api_key: {
-      bsonType: config.types.string,
+    city: {
+      bsonType: config.type_string, // Istanbul
+    },
+    district: {
+      bsonType: config.type_string, // Buyukcekmece
+    },
+    neighbourhood: {
+      bsonType: config.type_string, // Sinanoba
+    },
+    address: {
+      bsonType: config.type_string, // Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
+    },
+    zip: {
+      bsonType: config.type_number, // 34535
     },
 
-    wallet_address: {
-      bsonType: config.types.string,
+    role: {
+      enum: [config.role_admin, config.role_user],
+    },
+    role_key: {
+      bsonType: config.type_string,
+    },
+
+    ref_code: {
+      bsonType: config.type_string,
+    },
+    ref_from: {
+      bsonType: [config.type_object_id, config.type_null],
     },
 
     created_at: {
-      bsonType: config.types.date,
+      bsonType: config.type_date,
     },
     updated_at: {
-      bsonType: config.types.date,
+      bsonType: config.type_date,
     },
   },
 };

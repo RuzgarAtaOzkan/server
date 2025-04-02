@@ -10,6 +10,9 @@ import { routes_i, services_i } from 'interfaces/api';
 // CONFIG
 import config from '../../config';
 
+// UTILS
+import { sleep } from '../../utils/common';
+
 function bind_static_routes(
   server: FastifyInstance,
   services: services_i,
@@ -20,9 +23,30 @@ function bind_static_routes(
     // #title: GET PROFILE
     // #state: Public
     // #desc: Check if request has session and user, response: IProfile | null
-    public_image: {
+    root: {
       method: 'GET',
-      url: config.endpoints.static_images,
+      url: config.endpoint_static_root,
+      handler: async function (request: any, reply: any) {
+        const response: string =
+          config.ENV_URL_UI +
+          '\n\n' +
+          'collaborators:' +
+          '\n\n' +
+          'Frontend: https://github.com/basarballioz' +
+          '\n' +
+          'Backend: https://github.com/ruzgarataozkan';
+
+        try {
+          reply.send(response);
+        } catch (err: any) {
+          reply.status(422).send(err);
+        }
+      },
+    },
+
+    static_images_id: {
+      method: 'GET',
+      url: config.endpoint_static_images_id,
       handler: async function (request: any, reply: any) {
         const path: string = 'public/images/' + request.params.id;
 

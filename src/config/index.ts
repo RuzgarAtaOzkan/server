@@ -6,111 +6,119 @@ import dotenv from 'dotenv';
 // INTERFACES
 import config_i from 'interfaces/config';
 
-// Bind .env file to the process.env;
+// UTILS
+import { sysgmt } from '../utils/common';
+
+// bind .env file to the process.env;
 const env = dotenv.config();
 
 if (env.error) {
-  // This error should crash whole process
-  throw new Error("⚠️  Couldn't find .env file  ⚠️");
+  // this error should crash whole process
+  throw 'CONFIG: ENV FILE ERROR';
 }
 
+// COMMON CONFIGURATION VALUES OF THE SYSTEM
 const config: config_i = {
-  endpoints: {
-    // static
-    static_images: '/images/:id',
+  // ENV
+  ENV_PORT: Number(process.env.PORT) || 3001,
+  ENV_PORT_SOCKET: Number(process.env.PORT_SOCKET) || 3002,
 
-    // auth
-    auth_root: '/', // PUBLIC
-    auth_profile: '/profile', // PUBLIC
-    auth_signin: '/signin', // PUBLIC
-    auth_signup: '/signup', // PUBLIC
-    auth_signout: '/signout', // AUTH
-    auth_email_verify: '/email-verify/:token', // PUBLIC
-    auth_email_change: '/email-change', // AUTH
-    auth_password_change: '/password-change', // AUTH
-    auth_password_reset: '/password-reset/:token', // PUBLIC
+  ENV_HOST: process.env.HOST || '127.0.0.1',
 
-    // emails
-    mail_send_verification_link: '/email-send-verification-link', // AUTH
-    mail_send_password_reset_link: '/email-send-password-reset-link', // PUBLIC
+  ENV_SESSION_SECRET: process.env.SESSION_SECRET || 'SECRET123',
+  ENV_SESSION_NAME: process.env.SESSION_NAME || 'domain_sid',
+  ENV_SESSION_LIFETIME_MS: 1000 * 60 * 60 * 24,
 
-    // settings
-    settings: '/settings', // PUBLIC
-  },
-  env: {
-    PORT: process.env.PORT || '3001',
-    PORT_SOCKET: process.env.PORT_SOCKET || '3002',
+  ENV_DB_URL: process.env.DB_URL || 'mongodb://localhost:27017',
+  ENV_DB_NAME: process.env.DB_NAME || 'domain',
 
-    HOST: process.env.HOST || '127.0.0.1',
+  ENV_ROLE_KEY_USER: process.env.ROLE_KEY_USER || 'SECRET123',
+  ENV_ROLE_KEY_ADMIN: process.env.ROLE_KEY_ADMIN || 'SECRET123',
 
-    // serverside cookie session kaciriyosun_sid
-    SESSION_SECRET: process.env.SESSION_SECRET || '',
-    SESSION_NAME: process.env.SESSION_NAME || '',
-    SESSION_LIFETIME_MS: 1000 * 60 * 60 * 24,
+  ENV_EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  ENV_EMAIL_USERNAME: process.env.EMAIL_USERNAME || 'mail@domain.com',
+  ENV_EMAIL_PASSWORD: process.env.EMAIL_PASSWORD || 'SECRET123',
 
-    DB_URL: process.env.DB_URL || '',
-    DB_NAME: process.env.DB_NAME || '',
+  ENV_URL_API: process.env.URL_API || 'https://api.domain.com',
+  ENV_URL_UI: process.env.URL_UI || 'https://domain.com',
+  ENV_URL_UI_LOCAL: process.env.URL_UI_LOCAL || 'http://localhost:3000',
 
-    ROLE_KEY_ADMIN: process.env.ROLE_KEY_ADMIN || '',
-    ROLE_KEY_USER: process.env.ROLE_KEY_USER || '',
+  ENV_API_KEY_CAPTCHA: process.env.API_KEY_CAPTCHA || '',
+  ENV_API_KEY_IYZICO: process.env.API_KEY_IYZICO || 'SECRET123',
+  ENV_API_KEY_IYZICO_SECRET: process.env.API_KEY_IYZICO_SECRET || 'SECRET123',
 
-    EMAIL_HOST: process.env.EMAIL_HOST || '',
-    EMAIL_USERNAME: process.env.EMAIL_USERNAME || '',
-    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD || '',
+  // ENDPOINTS
 
-    URL_API: process.env.URL_API || '',
-    URL_UI: process.env.URL_UI || '',
+  // static
+  endpoint_static_root: '/',
+  endpoint_static_images_id: '/images/:id',
+  // auth
+  endpoint_user_profile: '/profile', // PUBLIC
+  endpoint_user_signin: '/signin', // PUBLIC
+  endpoint_user_signup: '/signup', // PUBLIC
+  endpoint_user_signout: '/signout', // AUTH
+  endpoint_user_email_verify: '/email-verify/:code', // PUBLIC
+  endpoint_user_email_change: '/email-change', // AUTH
+  endpoint_user_password_change: '/password-change', // AUTH
+  endpoint_user_password_reset: '/password-reset', // PUBLIC
+  // emails
+  endpoint_mail_verification_link: '/mail-verification-link', // AUTH
+  endpoint_mail_password_reset_link: '/mail-password-reset-link', // PUBLIC
+  // settings
+  endpoint_settings: '/settings', // PUBLIC
+  endpoint_settings_cities: '/settings/cities', // PUBLIC
+  endpoint_settings_districts: '/settings/districts', // PUBLIC
+  endpoint_settings_neighbourhoods: '/settings/neighbourhoods', // PUBLIC
+  // stores
+  endpoint_stores: '/stores', // PUBLIC
+  endpoint_stores_id: '/stores/:_id', // PUBLIC
+  // products
+  endpoint_products: '/products', // PUBLIC ?store_id=123
+  // orders
+  endpoint_orders: '/orders', // AUTH ?store_id=123
+  endpoint_orders_delivery: '/orders/:code',
+  // endpoint_orders_delivery: "/orders/delivery/:code"
+  // coupons
+  endpoint_cards: '/cards', // AUTH
+  // coupons
+  endpoint_coupons: '/coupons', // STORE
 
-    // API KEYS
-    API_KEY_CAPTCHA: process.env.API_KEY_CAPTCHA || '',
+  // ROLES
+  role_admin: 'admin',
+  role_user: 'user',
 
-    API_KEY_0X: process.env.API_KEY_0X || '',
+  // TIMES
+  time_gmt: sysgmt(), // system GMT
+  time_one_min_ms: 1000 * 60,
+  time_one_hour_ms: 1000 * 60 * 60,
+  time_one_day_ms: 1000 * 60 * 60 * 24,
 
-    API_KEY_MORALIS: process.env.API_KEY_MORALIS || '',
+  // TYPES
+  type_string: 'string',
+  type_number: 'number',
+  type_boolean: 'boolean',
+  type_object: 'object',
+  type_undefined: 'undefined',
+  type_object_id: 'objectId',
+  type_int: 'int',
+  type_float: 'float',
+  type_date: 'date',
+  type_double: 'double',
+  type_bool: 'bool',
+  type_array: 'array',
+  type_function: 'function',
+  type_null: 'null',
 
-    API_KEY_ETHERSCAN: process.env.API_KEY_ETHERSCAN || '',
-    API_KEY_BSCSCAN: process.env.API_KEY_BSCSCAN || '',
-    API_KEY_ARBISCAN: process.env.API_KEY_ARBISCAN || '',
-    API_KEY_POLYGONSCAN: process.env.API_KEY_POLYGONSCAN || '',
-    API_KEY_FTMSCAN: process.env.API_KEY_FTMSCAN || '',
-    API_KEY_CELOSCAN: process.env.API_KEY_CELOSCAN || '',
-  },
-  roles: {
-    admin: 'admin',
-    user: 'user',
-  },
-  times: {
-    one_min_ms: 1000 * 60,
-    one_hour_ms: 1000 * 60 * 60,
-    one_day_ms: 1000 * 60 * 60 * 24,
-  },
-  types: {
-    objectId: 'objectId',
-    string: 'string',
-    number: 'number',
-    int: 'int',
-    float: 'float',
-    date: 'date',
-    double: 'double',
-    boolean: 'boolean',
-    bool: 'bool',
-    object: 'object',
-    array: 'array',
-    function: 'function',
-    null: 'null',
-    undefined: 'undefined',
-  },
-
+  // BLOCKCHAIN
   blockchain_chains: {
-    // Ethereum Mainnet
-    '1': {
-      name: 'Ethereum Mainnet',
+    1: {
+      name: 'Ethereum ERC20',
       token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      token_address_wrapped: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       token_name: 'Ethereum',
       token_symbol: 'ETH',
       token_decimals: 18,
       token_img: '/images/ethereum.png',
-      wrapped_address: '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
       usdt_address: '0xdac17f958d2ee523a2206206994597c13d831ec7',
       usdt_decimals: 6,
       usdc_address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
@@ -118,18 +126,18 @@ const config: config_i = {
       dai_address: '0x6b175474e89094c44da98b954eedeac495271d0f',
       dai_decimals: 18,
       url_explorer: 'https://etherscan.io',
+      url_binance_price:
+        'https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDC',
       '0x_param': '',
     },
-
-    // BSC
-    '56': {
-      name: 'BNB Smart Chain',
+    56: {
+      name: 'Smart Chain BEP20',
       token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      token_address_wrapped: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
       token_name: 'BNB',
       token_symbol: 'BNB',
       token_decimals: 18,
       token_img: '/images/bnb.png',
-      wrapped_address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
       usdt_address: '0x55d398326f99059ff775485246999027b3197955',
       usdt_decimals: 18,
       usdc_address: '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d',
@@ -137,18 +145,18 @@ const config: config_i = {
       dai_address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
       dai_decimals: 18,
       url_explorer: 'https://bscscan.com',
+      url_binance_price:
+        'https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDC',
       '0x_param': 'bsc.',
     },
-
-    // Polygon
-    '137': {
-      name: 'Polygon Mainnet',
+    137: {
+      name: 'Polygon POS',
       token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      token_address_wrapped: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
       token_name: 'Polygon',
       token_symbol: 'POL',
       token_decimals: 18,
       token_img: '/images/polygon.png',
-      wrapped_address: '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
       usdt_address: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f',
       usdt_decimals: 6,
       usdc_address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359',
@@ -156,94 +164,9 @@ const config: config_i = {
       dai_address: '0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063',
       dai_decimals: 18,
       url_explorer: 'https://polygonscan.com',
+      url_binance_price:
+        'https://api.binance.com/api/v3/ticker/price?symbol=POLUSDC',
       '0x_param': 'polygon.',
-    },
-
-    // Fantom
-    '250': {
-      name: 'Fantom Mainnet',
-      token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-      token_name: 'Fantom',
-      token_symbol: 'FTM',
-      token_decimals: 18,
-      wrapped_address: '0x21be370d5312f44cb42ce377bc9b8a0cef1a4c83',
-      usdt_address: '0x049d68029688eabf473097a2fc38ef61633a3c7a',
-      usdt_decimals: 6,
-      usdc_address: '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75',
-      usdc_decimals: 6,
-      dai_address: '0x8D11eC38a3EB5E956B052f67Da8Bdc9bef8Abf3E',
-      dai_decimals: 18,
-      url_explorer: 'https://ftmscan.com',
-      '0x_param': 'fantom.',
-    },
-
-    // Arbitrum
-    '42161': {
-      name: 'Arbitrum Mainnet',
-      token_img: '/images/arbitrum.png',
-      token_address: '0x912CE59144191C1204E64559FE8253a0e49E6548',
-      token_name: 'Arbitrum',
-      token_symbol: 'ARB',
-      token_decimals: 18,
-      usdt_address: '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',
-      usdt_decimals: 6,
-      usdc_address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-      usdc_decimals: 6,
-      dai_address: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
-      dai_decimals: 18,
-      url_explorer: 'https://arbiscan.io',
-      '0x_param': 'arbitrum.',
-    },
-
-    // Celo
-    '42220': {
-      name: 'Celo Mainnet',
-      token_img: '/images/celo.png',
-      token_address: '0x471ece3750da237f93b8e339c536989b8978a438',
-      token_name: 'Celo',
-      token_symbol: 'CELO',
-      token_decimals: 18,
-      usdt_address: '',
-      usdt_decimals: 0,
-      usdc_address: '0x37f750b7cc259a2f741af45294f6a16572cf5cad',
-      usdc_decimals: 6,
-      dai_address: '',
-      dai_decimals: 0,
-      url_explorer: 'https://celoscan.io/',
-      '0x_param': 'celo.',
-    },
-
-    // Avalanche
-    '43114': {
-      name: 'Avalanche Mainnet C-Chain',
-      token_img: '/images/avalanche.png',
-      token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-      token_name: 'Avalanche',
-      token_symbol: 'AVAX',
-      token_decimals: 18,
-      wrapped_address: '0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7',
-      usdt_address: '0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7',
-      usdt_decimals: 6,
-      usdc_address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
-      usdc_decimals: 6,
-      dai_address: '0xd586E7F844cEa2F87f50152665BCbc2C279D8d70',
-      dai_decimals: 18,
-      url_explorer: 'https://snowtrace.io/',
-      '0x_param': 'avalanche.',
-    },
-
-    // Sepolia
-    '11155111': {
-      name: 'Sepolia Testnet',
-      token_img: '/images/token.png',
-      token_address: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
-      token_name: 'Sepolia',
-      token_symbol: 'SepoliaETH',
-      token_decimals: 18,
-      usdt_address: '0x7169d38820dfd117c3fa1f22a697dba58d90ba06',
-      usdt_decimals: 6,
-      url_explorer: 'https://sepolia.etherscan.io',
-      '0x_param': 'sepolia.',
     },
   },
 };

@@ -3,104 +3,107 @@
 // MODULES
 import { Document, ObjectId } from 'mongodb';
 
+// INTERFACES
+import { options_i } from 'interfaces/common';
+import { FastifyReply } from 'fastify/types/reply';
+import { FastifyRequest } from 'fastify/types/request';
+
 // CONFIG
 import config from '../../config';
 
-export async function is_admin(request: any, options: any): Promise<boolean> {
-  if (!request.cookies) {
-    return false;
+export async function validate_user(
+  request: any,
+  reply: FastifyReply,
+  options: options_i
+): Promise<Document | null> {
+  request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
+
+  const sid: string | undefined = request.cookies[config.ENV_SESSION_NAME];
+
+  if (sid === undefined) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
-  const sid: string | null = request.cookies[config.env.SESSION_NAME];
+  const session: any | null = JSON.parse(
+    await options.redis.hGet('sessions', sid)
+  );
 
-  if (!sid) {
-    return false;
-  }
-
-  const session: any = JSON.parse(await options.redis.hGet('sessions', sid));
-
-  if (!session) {
-    return false;
-  }
-
-  if (
-    new Date(session.created_at).valueOf() + config.env.SESSION_LIFETIME_MS <
-    Date.now()
-  ) {
-    await options.redis.hDel('sessions', sid);
-
-    return false;
+  if (session === null) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
   if (session.ip !== request.ip) {
-    return false;
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
   const user: Document | null = await options.db.users.findOne({
-    _id: new ObjectId(session.user_id),
+    _id: ObjectId.createFromHexString(session.user_id),
   });
 
-  if (!user) {
-    return false;
-  }
-
-  if (
-    user.role !== config.roles.admin ||
-    user.role_key !== config.env.ROLE_KEY_ADMIN
-  ) {
-    return false;
+  if (user === null) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
   request.user = user;
 
-  return true;
+  return user;
 }
 
-export async function is_auth(request: any, options: any): Promise<boolean> {
-  if (!request.cookies) {
-    return false;
+export async function validate_admin(
+  request: any,
+  reply: FastifyReply,
+  options: options_i
+): Promise<Document | null> {
+  request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
+
+  const sid: string | undefined = request.cookies[config.ENV_SESSION_NAME];
+
+  if (sid === undefined) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
-  const sid: string | null = request.cookies[config.env.SESSION_NAME];
+  const session: any | null = JSON.parse(
+    await options.redis.hGet('sessions', sid)
+  );
 
-  if (!sid) {
-    return false;
-  }
-
-  const session: any = JSON.parse(await options.redis.hGet('sessions', sid));
-
-  if (!session) {
-    return false;
-  }
-
-  if (
-    new Date(session.created_at).valueOf() + config.env.SESSION_LIFETIME_MS <
-    Date.now()
-  ) {
-    options.redis.hDel('sessions', sid);
-
-    return false;
+  if (session === null) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
   if (session.ip !== request.ip) {
-    return false;
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
   const user: Document | null = await options.db.users.findOne({
-    _id: new ObjectId(session.user_id),
+    _id: ObjectId.createFromHexString(session.user_id),
   });
 
-  if (!user) {
-    return false;
+  if (user === null) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
   }
 
-  // IMPORTANT DEPENDENCY ON MANY ROUTE ENTRANCE
+  if (
+    user.role !== config.role_admin ||
+    user.role_key !== config.ENV_ROLE_KEY_ADMIN
+  ) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
   request.user = user;
 
-  return true;
+  return user;
 }
 
 export default {
-  is_admin,
-  is_auth,
+  validate_user,
+  validate_admin,
 };

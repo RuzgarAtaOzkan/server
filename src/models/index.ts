@@ -2,6 +2,7 @@
 
 // MODELS
 import user from './user';
+
 const models = {
   user,
 };

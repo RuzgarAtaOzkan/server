@@ -1,10 +1,10 @@
 'use strict';
 
 // MODULES
-import validator from 'validator';
-import fs from 'fs';
+import fs from 'node:fs';
+import crypto from 'node:crypto';
 import axios from 'axios';
-import Crypto from 'node:crypto';
+import validator from 'validator';
 
 // INTERFACES
 import { Document, ObjectId } from 'mongodb';
@@ -17,64 +17,58 @@ import config from '../config';
 import { random, str_remove_space } from './common';
 
 ///////////////////////
-// AUTH UTILS
+// COMMON UTILS
 ///////////////////////
-export class validator_common_init {
+export class common_validator_init {
   private readonly options: options_i;
 
   constructor(options: options_i) {
     this.options = options;
   }
 
-  static base64(base64: string, err: any) {
-    if (typeof base64 !== config.types.string) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+  static base64(base64: string) {
+    if (typeof base64 !== config.type_string) {
+      throw 'ERR_INVALID_BASE64';
     }
 
-    if (base64.length > 1000000) {
-      throw {
-        message: 'credentials are too big',
-        type: `${err.section}:${err.type}`,
-      };
+    if (base64.length > 500000) {
+      throw 'ERR_LONG_BASE64';
     }
 
     // allowed image types
     if (
-      !base64.startsWith('data:image/png;base64,') &&
-      !base64.startsWith('data:image/jpg;base64,') &&
-      !base64.startsWith('data:image/jpeg;base64,') &&
-      !base64.startsWith('data:image/webp;base64,')
+      base64.startsWith('data:image/png;base64,') === false &&
+      base64.startsWith('data:image/jpg;base64,') === false &&
+      base64.startsWith('data:image/jpeg;base64,') === false &&
+      base64.startsWith('data:image/webp;base64,') === false
     ) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_INVALID_BASE64';
     }
 
     const base64_parts: string[] = base64.split(';base64,');
+
     const base64_type: string = base64_parts[0];
     const base64_data: string = base64_parts[1];
-    const file_ext: string = base64_type.split('/')[1];
 
-    if (!validator.isBase64(base64_data)) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    const base64_ext: string = base64_type.split('/')[1];
+
+    if (validator.isBase64(base64_data) === false) {
+      throw 'ERR_INVALID_BASE64';
     }
   }
 }
 
-export class validator_auth_init {
+///////////////////////
+// USER UTILS
+///////////////////////
+export class user_validator_init {
   private readonly options: options_i;
   private readonly password_config: any;
 
   constructor(options: options_i) {
     this.options = options;
 
+    // password difficulty configurations
     this.password_config = {
       minLength: 8,
       minSymbols: 0,
@@ -85,570 +79,573 @@ export class validator_auth_init {
   }
 
   async edit_profile(credentials: any): Promise<void> {
-    const err = { section: 'auth', type: 'profile-edit' };
+    // TODO: forbid user to change its contact informations if he has open orders or rented products so store owner can locate his contact information easily when the end of rent is due
+    const res: any[] = await Promise.all([
+      this.options.db.orders.findOne({
+        user_id: credentials.user._id,
+        open: true,
+        error: '',
+      }),
+      this.options.db.products.findOne({
+        user_id: credentials.user._id,
+        status: { $gte: 2 },
+      }),
+    ]);
+
+    const order: Document | null = res[0];
+    const product: Document | null = res[1];
+
+    if (order) {
+      throw 'ERR_EXISTING_ORDER';
+    }
+
+    if (product) {
+      throw 'ERR_EXISTING_PRODUCT';
+    }
 
     if (credentials.name) {
-      if (typeof credentials.name !== config.types.string) {
-        throw {
-          message: 'invalid credentials',
-          type: `${err.section}:${err.type}`,
-        };
-      }
-
-      if (credentials.name.length > 50) {
-        throw {
-          message: 'name is too long',
-          type: `${err.section}:${err.type}`,
-        };
+      if (typeof credentials.name !== config.type_string) {
+        throw 'ERR_INVALID_NAME';
       }
 
       credentials.name = str_remove_space(credentials.name);
+
+      if (credentials.name.length > 32) {
+        throw 'ERR_LONG_NAME';
+      }
     }
 
     if (credentials.username) {
-      if (typeof credentials.username !== config.types.string) {
-        throw {
-          message: 'invalid username',
-          type: `${err.section}:${err.type}`,
-        };
-      }
-
-      if (credentials.username.length > 50) {
-        throw {
-          message: 'username is too long',
-          type: `${err.section}:${err.type}`,
-        };
+      if (typeof credentials.username !== config.type_string) {
+        throw 'ERR_INVALID_USERNAME';
       }
 
       credentials.username = str_remove_space(
         credentials.username
       ).toLowerCase();
 
-      if (!validator.isAlphanumeric(credentials.username)) {
-        throw {
-          message: 'invalid username',
-          type: `${err.section}:${err.type}`,
-        };
+      if (credentials.username.length > 32) {
+        throw 'ERR_LONG_USERNAME';
+      }
+
+      if (validator.isAlphanumeric(credentials.username) === false) {
+        throw 'ERR_USERNAME';
       }
 
       if (credentials.username !== credentials.user.username) {
-        const user_existing = await this.options.db.users.findOne({
+        const user = await this.options.db.users.findOne({
           username: credentials.username,
         });
 
-        if (user_existing) {
-          throw {
-            message: 'existing username',
-            type: `${err.section}:${err.type}`,
-          };
+        if (user) {
+          throw 'ERR_EXISTING_USERNAME';
         }
 
         if (
           credentials.user.username_changed_at.valueOf() +
-            config.times.one_day_ms * 30 >
+            config.time_one_day_ms * 30 >
           Date.now()
         ) {
-          throw {
-            message: 'invalid username change date',
-            type: `${err.section}:${err.type}`,
-          };
+          throw 'ERR_INVALID_USERNAME_CHANGE_DATE';
         }
       }
     }
 
-    if (credentials.phone) {
-      if (typeof credentials.phone !== config.types.string) {
-        throw {
-          message: 'invalid phone',
-          type: `${err.section}:${err.type}`,
-        };
-      }
+    if (credentials.img) {
+      common_validator_init.base64(credentials.img);
+    }
 
-      if (credentials.phone.length > 14) {
-        throw {
-          message: 'phone is too long',
-          type: `${err.section}:${err.type}`,
-        };
+    if (credentials.phone) {
+      if (typeof credentials.phone !== config.type_string) {
+        throw 'ERR_INVALID_PHONE';
       }
 
       credentials.phone = str_remove_space(credentials.phone);
 
-      if (!validator.isMobilePhone(credentials.phone)) {
-        throw {
-          message: 'invalid phone',
-          type: `${err.section}:${err.type}`,
-        };
+      if (credentials.phone.length > 14) {
+        throw 'ERR_LONG_PHONE';
+      }
+
+      if (validator.isMobilePhone(credentials.phone) === false) {
+        throw 'ERR_INVALID_PHONE';
       }
     }
 
-    if (credentials.wallet_address) {
-      if (typeof credentials.wallet_address !== config.types.string) {
-        throw {
-          message: 'invalid wallet address',
-          type: `${err.section}:${err.type}`,
-        };
+    if (credentials.city) {
+      if (typeof credentials.city !== config.type_string) {
+        throw 'ERR_INVALID_CITY';
       }
 
-      if (credentials.wallet_address.length > 100) {
-        throw {
-          message: 'wallet address is too long',
-          type: `${err.section}:${err.type}`,
-        };
-      }
+      credentials.city = str_remove_space(credentials.city).toLowerCase();
 
-      credentials.wallet_address = str_remove_space(credentials.wallet_address);
-
-      if (
-        !validator.isHexadecimal(credentials.wallet_address) ||
-        !credentials.wallet_address.startsWith('0x')
-      ) {
-        throw {
-          message: 'invalid wallet address',
-          type: `${err.section}:${err.type}`,
-        };
+      if (credentials.city.length > 32) {
+        throw 'ERR_LONG_CITY';
       }
     }
 
-    if (credentials.img_base64) {
-      validator_common_init.base64(credentials.img_base64, err);
+    if (credentials.district) {
+      if (typeof credentials.district !== config.type_string) {
+        throw 'ERR_INVALID_DISTRICT';
+      }
+
+      credentials.district = str_remove_space(
+        credentials.district
+      ).toLowerCase();
+
+      if (credentials.district.length > 32) {
+        throw 'ERR_LONG_DISTRICT';
+      }
+    }
+
+    if (credentials.neighbourhood) {
+      if (typeof credentials.neighbourhood !== config.type_string) {
+        throw 'ERR_INVALID_NEIGHBOURHOOD';
+      }
+
+      credentials.neighbourhood = str_remove_space(
+        credentials.neighbourhood
+      ).toLowerCase();
+
+      if (credentials.neighbourhood.length > 32) {
+        throw 'ERR_LONG_NEIGHBOURHOOD';
+      }
+    }
+
+    if (credentials.address) {
+      if (typeof credentials.address !== config.type_string) {
+        throw 'ERR_INVALID_ADDRESS';
+      }
+
+      credentials.address = str_remove_space(credentials.address);
+
+      if (credentials.address.length > 128) {
+        throw 'ERR_LONG_ADDRESS';
+      }
+    }
+
+    if (credentials.zip) {
+      if (typeof credentials.zip !== config.type_number) {
+        throw 'ERR_INVALID_ZIP';
+      }
+
+      if (Math.abs(credentials.zip) > 100000) {
+        throw 'ERR_INVALID_ZIP';
+      }
     }
   }
 
   async signup(credentials: any): Promise<void> {
-    const err = { section: 'auth', type: 'signup' };
-
-    if (
-      typeof credentials.name !== config.types.string ||
-      typeof credentials.email !== config.types.string ||
-      typeof credentials.username !== config.types.string ||
-      typeof credentials.phone !== config.types.string ||
-      typeof credentials.password !== config.types.string
-    ) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.name !== config.type_string) {
+      throw 'ERR_INVALID_NAME';
     }
 
-    if (
-      credentials.name.length > 50 ||
-      credentials.email.length > 100 ||
-      credentials.username.length > 32 ||
-      credentials.phone.length > 14 ||
-      credentials.password.length > 32
-    ) {
-      throw {
-        message: 'credentials are too long',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
+    }
+
+    if (typeof credentials.username !== config.type_string) {
+      throw 'ERR_INVALID_USERNAME';
+    }
+
+    if (typeof credentials.password !== config.type_string) {
+      throw 'ERR_INVALID_PASSWORD';
+    }
+
+    if (credentials.ref_code) {
+      if (typeof credentials.ref_code !== config.type_string) {
+        throw 'ERR_INVALID_REF';
+      }
+
+      credentials.ref_code = str_remove_space(
+        credentials.ref_code
+      ).toLowerCase();
+
+      if (credentials.ref_code.length > 16) {
+        throw 'ERR_LONG_REF';
+      }
+    }
+
+    if (typeof credentials.remember !== config.type_boolean) {
+      throw 'ERR_INVALID_REMEMBER';
     }
 
     credentials.name = str_remove_space(credentials.name);
     credentials.email = str_remove_space(credentials.email).toLowerCase();
     credentials.username = str_remove_space(credentials.username).toLowerCase();
-    credentials.phone = str_remove_space(credentials.phone);
-    credentials.password = str_remove_space(credentials.password);
 
-    if (!validator.isEmail(credentials.email)) {
-      throw {
-        message: 'invalid email',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.name.length > 32) {
+      throw 'ERR_LONG_NAME';
     }
 
-    if (!validator.isAlphanumeric(credentials.username)) {
-      throw {
-        message: 'invalid username',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
     }
 
-    if (!validator.isMobilePhone(credentials.phone)) {
-      throw {
-        message: 'invalid phone',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.username.length > 32) {
+      throw 'ERR_LONG_USERNAME';
     }
 
-    if (credentials.password.includes(' ')) {
-      throw {
-        message: 'invalid password',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.password.length > 32) {
+      throw 'ERR_LONG_PASSWORD';
+    }
+
+    if (validator.isEmail(credentials.email) === false) {
+      throw 'ERR_INVALID_EMAIL';
+    }
+
+    if (validator.isAlphanumeric(credentials.username) === false) {
+      throw 'ERR_INVALID_USERNAME';
     }
 
     if (
-      !validator.isStrongPassword(credentials.password, this.password_config)
+      validator.isStrongPassword(credentials.password, this.password_config) ===
+      false
     ) {
-      throw {
-        message: 'weak password',
-        type: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_WEAK_PASSWORD';
     }
 
-    const user_existing = await this.options.db.users.findOne({
+    const user: Document | null = await this.options.db.users.findOne({
       $or: [{ email: credentials.email }, { username: credentials.username }],
     });
 
-    if (user_existing) {
-      throw {
-        message: 'existing user',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user) {
+      throw 'ERR_EXISTING_USER';
     }
 
-    if (credentials.img_base64) {
-      validator_common_init.base64(credentials.img_base64, err);
-    }
+    if (config.ENV_API_KEY_CAPTCHA) {
+      const urlencoded_captcha: string =
+        'response=' +
+        credentials.captcha +
+        '&secret=' +
+        config.ENV_API_KEY_CAPTCHA;
 
-    if (!validator.isIP(credentials.ip)) {
-      throw { message: 'invalid ip', type: `${err.section}:${err.type}` };
-    }
+      const res_captcha: any = await axios.post(
+        'https://api.hcaptcha.com/siteverify',
+        urlencoded_captcha,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      );
 
-    const urlencoded_captcha: string =
-      'response=' +
-      credentials.captcha_token +
-      '&secret=' +
-      config.env.API_KEY_CAPTCHA;
-
-    const res_capthca: any = await axios.post(
-      'https://api.hcaptcha.com/siteverify',
-      urlencoded_captcha,
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    );
-
-    if (!res_capthca.data.success) {
-      throw {
-        message: 'captcha fail',
-        type: `${err.section}:${err.type}`,
-      };
+      if (res_captcha.data.success === false) {
+        throw 'ERR_CAPTCHA';
+      }
     }
   }
 
   async signin(credentials: any): Promise<Document> {
-    const err = { section: 'auth', type: 'signin' };
-
-    if (!credentials.uid || !credentials.password) {
-      throw {
-        message: 'missing credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.uid !== config.type_string) {
+      throw 'ERR_INVALID_UID';
     }
 
-    if (
-      typeof credentials.ip !== config.types.string ||
-      typeof credentials.uid !== config.types.string ||
-      typeof credentials.password !== config.types.string
-    ) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.password !== config.type_string) {
+      throw 'ERR_INVALID_PASSWORD';
+    }
+
+    if (typeof credentials.remember !== config.type_boolean) {
+      throw 'ERR_INVALID_REMEMBER';
     }
 
     credentials.uid = str_remove_space(credentials.uid).toLowerCase();
-    credentials.password = str_remove_space(credentials.password);
+
+    if (credentials.uid.length > 32) {
+      throw 'ERR_LONG_UID';
+    }
+
+    if (credentials.password.length > 32) {
+      throw 'ERR_LONG_PASSWORD';
+    }
 
     const user: Document | null = await this.options.db.users.findOne({
       $or: [{ email: credentials.uid }, { username: credentials.uid }],
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
     }
 
     if (
       user.password !==
-      Crypto.createHash('sha256').update(credentials.password).digest('hex')
+      crypto.createHash('sha256').update(credentials.password).digest('hex')
     ) {
-      throw {
-        message: 'wrong password',
-        type: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_WRONG_PASSWORD';
     }
 
     return user;
   }
 
-  async reset_password(credentials: any): Promise<void> {
-    const err = { section: 'auth', type: 'password-reset' };
-
-    if (
-      typeof credentials.password !== config.types.string ||
-      typeof credentials.token !== config.types.string
-    ) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+  async reset_password(credentials: any): Promise<Document> {
+    if (typeof credentials.password !== config.type_string) {
+      throw 'ERR_INVALID_PASSWORD';
     }
 
-    if (credentials.password.length > 50 || credentials.token.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.code !== config.type_string) {
+      throw 'ERR_INVALID_CODE';
     }
 
-    credentials.password = str_remove_space(credentials.password);
-    credentials.token = str_remove_space(credentials.token);
+    if (credentials.password.length > 32) {
+      throw 'ERR_LONG_PASSWORD';
+    }
 
-    if (credentials.password.includes(' ')) {
-      throw { message: 'invalid password', type: `${err.section}:${err.type}` };
+    credentials.code = str_remove_space(credentials.code);
+
+    if (credentials.code.length > 128) {
+      throw 'ERR_LONG_CODE';
     }
 
     if (
-      !validator.isStrongPassword(credentials.password, this.password_config)
+      validator.isStrongPassword(credentials.password, this.password_config) ===
+      false
     ) {
-      throw {
-        message: 'weak password',
-        type: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_WEAK_PASSWORD';
     }
 
     const user: Document | null = await this.options.db.users.findOne({
-      password_reset_token: credentials.token,
+      password_reset_code: credentials.code,
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
     }
 
-    if (credentials.token !== user.password_reset_token) {
-      throw {
-        message: 'invalid token',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.code !== user.password_reset_code) {
+      throw 'ERR_INVALID_CODE';
     }
 
-    if (user.password_reset_token_exp_at.valueOf() < Date.now()) {
-      throw {
-        message: 'expired token',
-        type: `${err.section}:${err.type}`,
-      };
+    const exp: number =
+      parseInt(user.password_reset_code.substring(0, 8), 16) * 1000;
+
+    if (Date.now() > exp) {
+      throw 'ERR_EXPIRED_CODE';
     }
+
+    return user;
   }
 
   async change_password(credentials: any): Promise<void> {
-    const err = { section: 'auth', type: 'password-change' };
+    if (typeof credentials.password !== config.type_string) {
+      throw 'ERR_INVALID_PASSWORD';
+    }
 
-    if (
-      typeof credentials.password !== config.types.string ||
-      typeof credentials.new_password !== config.types.string
-    ) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (credentials.password.length > 32) {
+      throw 'ERR_LONG_PASSWORD';
     }
 
     if (
-      credentials.password.length > 50 ||
-      credentials.new_password.length > 50
+      validator.isStrongPassword(credentials.password, this.password_config) ===
+      false
     ) {
-      throw {
-        message: 'credentials are too long',
-        type: `${err.section}:${err.type}`,
-      };
-    }
-
-    credentials.password = str_remove_space(credentials.password);
-    credentials.new_password = str_remove_space(credentials.new_password);
-
-    if (
-      credentials.user.password !==
-      Crypto.createHash('sha256').update(credentials.password).digest('hex')
-    ) {
-      throw { message: 'wrong password', type: `${err.section}:${err.type}` };
-    }
-
-    if (credentials.new_password.includes(' ')) {
-      throw {
-        message: 'New password is invalid',
-        type: `${err.section}:${err.type}`,
-      };
-    }
-
-    if (
-      !validator.isStrongPassword(
-        credentials.new_password,
-        this.password_config
-      )
-    ) {
-      throw {
-        message: 'weak password',
-        type: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_WEAK_PASSWORD';
     }
   }
 
   async change_email(credentials: any): Promise<void> {
-    const err = { section: 'auth', type: 'email-change' };
-
-    if (typeof credentials.email !== config.types.string) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
-    if (credentials.email.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        type: `${err.section}:${err.type}`,
-      };
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
     }
 
-    credentials.email = str_remove_space(credentials.email);
-
-    if (!validator.isEmail(credentials.email)) {
-      throw { message: 'invalid email', type: `${err.section}:${err.type}` };
+    if (validator.isEmail(credentials.email) === false) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
-    const existing_user: Document | null = await this.options.db.users.findOne({
+    const user: Document | null = await this.options.db.users.findOne({
       email: credentials.email,
     });
 
-    if (existing_user) {
-      throw {
-        message: 'existing user',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user) {
+      throw 'ERR_EXISTING_USER';
     }
   }
 
   async verify_email(credentials: any): Promise<Document> {
-    const err = { section: 'auth', type: 'email-verify' };
-
-    if (typeof credentials.token !== config.types.string) {
-      throw {
-        message: 'invalid credentials',
-        type: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.code !== config.type_string) {
+      throw 'ERR_INVALID_CODE';
     }
 
-    if (credentials.token.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        type: `${err.section}:${err.type}`,
-      };
-    }
+    credentials.code = str_remove_space(credentials.code);
 
-    credentials.token = str_remove_space(credentials.token);
+    if (credentials.code.length > 128) {
+      throw 'ERR_LONG_CODE';
+    }
 
     const user: Document | null = await this.options.db.users.findOne({
-      email_verification_token: credentials.token,
+      email_verification_code: credentials.code,
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
     }
 
-    if (user.email_verification_token !== credentials.token) {
-      throw {
-        message: 'invalid token',
-        type: `${err.section}:${err.type}`,
-      };
+    if (user.email_verification_code !== credentials.code) {
+      throw 'ERR_INVALID_CODE';
     }
 
-    if (user.email_verification_token_exp_at.valueOf() < Date.now()) {
-      throw {
-        message: 'expired token',
-        type: `${err.section}:${err.type}`,
-      };
+    const exp: number =
+      parseInt(user.email_verification_code.substring(0, 8), 16) * 1000;
+
+    if (Date.now() > exp) {
+      throw 'ERR_INVALID_CODE';
     }
 
     return user;
   }
 }
 
-// TODO! if concurrent create_session request arrives, at least one of them will overwrite the other session hash, find a way to avoid hSet if key exists...
-export async function create_session(
+// TODO: if concurrent user_create_session request arrives, at least one of them will overwrite the other session hash, find a way to avoid hSet if key exists...
+export async function user_create_session(
   payload: any,
   options: options_i
 ): Promise<string> {
   const session: string = JSON.stringify({
     user_id: payload.user_id,
     ip: payload.ip,
+    remember: payload.remember,
     created_at: new Date(),
   });
 
-  let sid: string = random({ length: 128 });
+  // 32 bytes strong random hexadecimal string
+  let sid: string = random();
   let result: number = await options.redis.HSETNX('sessions', sid, session);
 
-  while (!result) {
-    sid = random({ length: 128 });
+  while (result === 0) {
+    sid = random();
     result = await options.redis.HSETNX('sessions', sid, session);
   }
+
+  // set expiration for the individual session (sid) in seconds
+  let exp: number = config.ENV_SESSION_LIFETIME_MS / 1000;
+  if (payload.remember) {
+    exp = exp * 30;
+  }
+
+  await options.redis.expire(sid, exp);
 
   return sid;
 }
 
-export async function generate_email_verification_token(
+export async function user_generate_email_verification_code(
+  length: number = config.time_one_hour_ms, // Date.now() + length in milliseconds
   options: options_i
 ): Promise<string> {
-  let token: string = random({ length: 64 });
+  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, setting the expiration date to year 2106 or more is forbidden, it causes the hexadecimal to be 10 bytes which break the algorithms of some functions dependent on it.
+
+  const exp: string = Math.floor((Date.now() + length) / 1000).toString(16);
+
+  let code: string = exp + random(24);
   let user: Document | null = await options.db.users.findOne({
-    email_verification_token: token,
+    email_verification_code: code,
   });
 
   while (user) {
-    token = random({ length: 64 });
+    code = exp + random(24);
     user = await options.db.users.findOne({
-      email_verification_token: token,
+      email_verification_code: code,
     });
   }
 
-  return token;
+  return code;
 }
 
-export async function generate_password_reset_token(
+export async function user_generate_password_reset_code(
+  length: number = config.time_one_hour_ms, // Date.now() + length in milliseconds
   options: options_i
 ): Promise<string> {
-  let token: string = random({ length: 64 });
+  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, setting the expiration date to year 2106 or more is forbidden, it causes the hexadecimal to be 10 bytes which breaks the algorithms which expects hexadecimal to be 8 bytes long.
+
+  const exp: string = Math.floor((Date.now() + length) / 1000).toString(16);
+
+  let code: string = exp + random(24);
   let user: Document | null = await options.db.users.findOne({
-    password_reset_token: token,
+    password_reset_code: code,
   });
 
   while (user) {
-    token = random({ length: 64 });
-    user = await options.db.users.findOne({
-      password_reset_token: token,
-    });
+    code = exp + random(24);
+    user = await options.db.users.findOne({ password_reset_code: code });
   }
 
-  return token;
+  return code;
 }
 
-async function generate_ref_code(options: options_i): Promise<string> {
-  let code: string = random({
-    length: 8,
-    type: 'distinguishable',
-  });
-
-  let user: Document = await options.db.users.findOne({
+export async function user_generate_ref_code(
+  options: options_i
+): Promise<string> {
+  let code: string = random(8);
+  let user: Document | null = await options.db.users.findOne({
     ref_code: code,
   });
 
   while (user) {
-    code = random({ length: 8, type: 'distinguishable' });
+    code = random(8);
     user = await options.db.users.findOne({ ref_code: code });
   }
 
   return code;
 }
 
-export async function generate_api_key(options: options_i): Promise<string> {
-  const LENGTH: number = 40; // safubase_123cdD893dS679sdd
+export async function user_create_doc(
+  credentials: any,
+  options: options_i
+): Promise<Document> {
+  const res = await Promise.all([
+    user_generate_email_verification_code(config.time_one_hour_ms, options),
+    user_generate_password_reset_code(0, options),
+    user_generate_ref_code(options),
+    options.db.users.findOne({
+      ref_code: credentials.ref_code ? credentials.ref_code.toLowerCase() : '',
+    }),
+  ]);
+
+  const email_verification_code: string = res[0];
+  const password_reset_code: string = res[1];
+  const ref_code: string = res[2];
+  const ref_from: ObjectId | null = res[3] ? res[3]._id : null;
+
+  const doc: any = {
+    name: str_remove_space(credentials.name),
+    username: str_remove_space(credentials.username).toLowerCase(),
+    username_changed_at: new Date(),
+
+    email: str_remove_space(credentials.email).toLowerCase(),
+    email_verified: false,
+    email_verification_code: email_verification_code,
+
+    password: crypto
+      .createHash('sha256')
+      .update(credentials.password)
+      .digest('hex'),
+    password_reset_code: password_reset_code,
+
+    role: config.role_user,
+    role_key: config.ENV_ROLE_KEY_USER,
+
+    ref_code: ref_code,
+    ref_from: ref_from,
+
+    img: '',
+    phone: '', //str_remove_space(credentials.phone),
+
+    city: '', // istanbul
+    district: '', // buyukcekmece
+    neighbourhood: '', // sinanoba
+    address: '', // Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
+    zip: 0, // 34535
+
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+
+  return doc;
+}
+
+export async function user_generate_api_key(
+  options: options_i
+): Promise<string> {
+  const LENGTH: number = 32; // domain_123cdD893dS679sdd
   const BUFFER: string[] =
     'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890'.split('');
 
@@ -662,7 +659,7 @@ export async function generate_api_key(options: options_i): Promise<string> {
     BUFFER[randy] = saved;
   }
 
-  const namespace: string = config.env.DB_NAME;
+  const namespace: string = config.ENV_DB_NAME;
 
   // len_ran: length of random on the right side of the string.
   const random_len: number = LENGTH - (namespace.length + 1); // + 1: underscore on the middle
@@ -692,223 +689,187 @@ export async function generate_api_key(options: options_i): Promise<string> {
   return final;
 }
 
-export async function create_user_doc(
-  credentials: any,
-  options: options_i
-): Promise<any> {
-  const res = await Promise.all([
-    generate_email_verification_token(options),
-    generate_ref_code(options),
-    options.db.users.findOne({ ref_code: credentials.ref_code }),
-    generate_api_key(options),
-  ]);
-
-  const email_verification_token: string = res[0];
-  const ref_code: string = res[1];
-  const ref_from: ObjectId | null = res[2] ? res[2]._id : null;
-  const api_key: string = res[3];
-
-  const doc: any = {
-    name: str_remove_space(credentials.name),
-
-    username: str_remove_space(credentials.username).toLowerCase(),
-    username_changed_at: new Date(),
-
-    email: str_remove_space(credentials.email).toLowerCase(),
-    email_verified: false,
-    email_verification_token: email_verification_token,
-    email_verification_token_exp_at: new Date(
-      Date.now() + config.times.one_day_ms
-    ),
-
-    password: Crypto.createHash('sha256')
-      .update(credentials.password)
-      .digest('hex'),
-    password_reset_token: null,
-    password_reset_token_exp_at: new Date(),
-
-    role: config.roles.user,
-    role_key: config.env.ROLE_KEY_USER,
-
-    ref_code: ref_code,
-    ref_from: ref_from,
-
-    img: '',
-
-    phone: str_remove_space(credentials.phone),
-
-    api_key: api_key,
-
-    wallet_address: '',
-
-    created_at: new Date(),
-    updated_at: new Date(),
-  };
-
-  return doc;
-}
-
-export function return_user_profile(user: any) {
+export function user_return_profile(user: Document) {
   return {
     _id: user._id,
+
     name: user.name,
     username: user.username,
+
     email: user.email,
     email_verified: user.email_verified,
+
     phone: user.phone,
     role: user.role,
     img: user.img,
-    ref_code: user.ref_code,
+
+    ref_code: user.ref_code.toUpperCase(),
     ref_from: user.ref_from,
-    api_key: user.api_key,
-    wallet_address: user.wallet_address,
+
+    city: user.city,
+    district: user.district,
+    neighbourhood: user.neighbourhood,
+    address: user.address,
+    zip: user.zip,
+
+    created_at: user.created_at,
+    updated_at: user.updated_at,
   };
 }
 
 ///////////////////////
 // MAIL UTILS
 ///////////////////////
-export class validator_mail_init {
+export class mail_validator_init {
   private readonly options: options_i;
 
   constructor(options: options_i) {
     this.options = options;
   }
 
-  async send_verification_link(payload: any): Promise<Document> {
-    const err = { section: 'mail', type: 'send-verification-link' };
-
-    if (
-      typeof payload.email !== config.types.string ||
-      typeof payload.token !== config.types.string
-    ) {
-      throw {
-        message: 'invalid credentials',
-        code: `${err.section}:${err.type}`,
-      };
+  async send_verification_link(credentials: any): Promise<Document> {
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
-    if (payload.email.length > 256 || payload.token.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        code: `${err.section}:${err.type}`,
-      };
+    if (typeof credentials.code !== config.type_string) {
+      throw 'ERR_INVALID_CODE';
     }
 
-    payload.email = str_remove_space(payload.email).toLowerCase();
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+    credentials.code = str_remove_space(credentials.code);
 
-    if (!validator.isEmail(payload.email)) {
-      throw { message: 'invalid email', code: `${err.section}:${err.type}` };
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
+    }
+
+    if (credentials.code.length > 128) {
+      throw 'ERR_LONG_CODE';
+    }
+
+    if (validator.isEmail(credentials.email) === false) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
     const user: Document | null = await this.options.db.users.findOne({
-      email: payload.email,
+      email: credentials.email,
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        code: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
     }
 
     return user;
   }
 
-  async resend_verification_link(email: string): Promise<Document> {
-    const err = { section: 'mail', type: 'resend-verification-link' };
-
-    if (typeof email !== config.types.string) {
-      throw {
-        message: 'invalid credentials',
-        code: `${err.section}:${err.type}`,
-      };
+  async resend_verification_link(credentials: any): Promise<Document> {
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
-    if (email.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        code: `${err.section}:${err.type}`,
-      };
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
     }
 
-    email = str_remove_space(email).toLowerCase();
-
-    if (!validator.isEmail(email)) {
-      throw { message: 'invalid email', code: `${err.section}:${err.type}` };
+    if (validator.isEmail(credentials.email) === false) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
     const user: Document | null = await this.options.db.users.findOne({
-      email: email,
+      email: credentials.email,
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        code: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
     }
 
     if (user.email_verified) {
-      throw {
-        message: 'email is already verified',
-        code: `${err.section}:${err.type}`,
-      };
+      throw 'ERR_VERIFIED_EMAIL';
+    }
+
+    if (config.ENV_API_KEY_CAPTCHA) {
+      const urlencoded_captcha: string =
+        'response=' +
+        credentials.captcha +
+        '&secret=' +
+        config.ENV_API_KEY_CAPTCHA;
+
+      const res_captcha: any = await axios.post(
+        'https://api.hcaptcha.com/siteverify',
+        urlencoded_captcha,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      );
+
+      if (res_captcha.data.success === false) {
+        throw 'ERR_CAPTCHA';
+      }
     }
 
     return user;
   }
 
-  async send_password_reset_link(email: string): Promise<Document> {
-    const err = { section: 'mail', type: 'send-password-reset-link' };
-
-    if (typeof email !== config.types.string) {
-      throw {
-        message: 'invalid credentials',
-        code: `${err.section}:${err.type}`,
-      };
+  async send_password_reset_link(credentials: any): Promise<Document> {
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
-    if (email.length > 256) {
-      throw {
-        message: 'credentials are too long',
-        code: `${err.section}:${err.type}`,
-      };
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
     }
 
-    email = str_remove_space(email).toLowerCase();
-
-    if (!validator.isEmail(email)) {
-      throw { message: 'invalid email', code: `${err.section}:${err.type}` };
+    if (validator.isEmail(credentials.email) === false) {
+      throw 'ERR_INVALID_EMAIL';
     }
 
     const user: Document | null = await this.options.db.users.findOne({
-      email: email,
+      email: credentials.email,
     });
 
-    if (!user) {
-      throw {
-        message: 'missing user',
-        code: `${err.section}:${err.type}`,
-      };
+    if (user === null) {
+      throw 'ERR_MISSING_USER';
+    }
+
+    if (config.ENV_API_KEY_CAPTCHA) {
+      const urlencoded_captcha: string =
+        'response=' +
+        credentials.captcha +
+        '&secret=' +
+        config.ENV_API_KEY_CAPTCHA;
+
+      const res_captcha: any = await axios.post(
+        'https://api.hcaptcha.com/siteverify',
+        urlencoded_captcha,
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      );
+
+      if (res_captcha.data.success === false) {
+        throw 'ERR_CAPTCHA';
+      }
     }
 
     return user;
   }
 }
 
-export function generate_html(type = 'email-verify', payload: any): string {
+export function mail_generate_html(
+  type = 'email-verify',
+  payload: any
+): string {
   switch (type) {
     case 'email-verify':
       return (
         '<!DOCTYPE html><html lang="en"> <head> <meta charset="UTF-8"/> <meta http-equiv="X-UA-Compatible" content="IE=edge"/> <meta name="viewport" content="width=device-width,initial-scale=1"/> <title>' +
-        config.env.URL_UI +
-        '</title> <style rel="stylesheet"> *{margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; text-decoration: none; border: none; outline: none;}body{}.mail{max-width: 600px;}.mail-img{display: block; width: 30px; border-radius: 6px;}.mail-title{margin-top: 1rem; font-size: 16px; margin-bottom: 1rem;}.mail-desc{margin: 1rem 0;}.mail-warning{margin-top: 1rem;}.mail-copyright{margin-top: 1rem;}</style> </head> <body> <div class="mail"> <img src="https://' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
+        '</title> <style rel="stylesheet"> *{margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; text-decoration: none; border: none; outline: none;}body{}.mail{max-width: 600px;}.mail-img{display: block; width: 30px; border-radius: 6px;}.mail-title{margin-top: 1rem; font-size: 16px; margin-bottom: 1rem;}.mail-desc{margin: 1rem 0;}.mail-warning{margin-top: 1rem;}.mail-copyright{margin-top: 1rem;}</style> </head> <body> <div class="mail"> <img src="' +
+        config.ENV_URL_UI +
         '/favicon.ico" alt="' +
-        config.env.DB_NAME +
+        config.ENV_DB_NAME +
         '" class="mail-img"/> <h1 class="mail-title"> Welcome to ' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
         ', please confirm your email. </h1> <div class="mail-value"> Account: <span class="username">' +
         payload.username +
         '</span> </div><div class="mail-value"> IP Address: <span class="ip">' +
@@ -920,22 +881,22 @@ export function generate_html(type = 'email-verify', payload: any): string {
         '" target="_blank" rel="referrer" class="mail-button" >' +
         payload.link +
         '</a > <div class="mail-warning"> If you didn\'t signup to ' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
         ', you can ignore this email </div><div class="mail-copyright"> © 2023 ' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
         ' | All rights reserved. </div></div></body></html>'
       );
 
     case 'password-reset':
       return (
         '<!DOCTYPE html><html lang="en"> <head> <meta charset="UTF-8"/> <meta http-equiv="X-UA-Compatible" content="IE=edge"/> <meta name="viewport" content="width=device-width,initial-scale=1"/> <title>' +
-        config.env.URL_UI +
-        '</title> <style rel="stylesheet"> *{margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; text-decoration: none; border: none; outline: none;}body{}.mail{max-width: 600px;}.mail-img{display: block; width: 30px; border-radius: 6px;}.mail-title{margin-top: 1rem; font-size: 16px; margin-bottom: 1rem;}.mail-desc{margin: 1rem 0;}.mail-warning{margin-top: 1rem;}.mail-copyright{margin-top: 1rem;}</style> </head> <body> <div class="mail"> <img src="https://' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
+        '</title> <style rel="stylesheet"> *{margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; text-decoration: none; border: none; outline: none;}body{}.mail{max-width: 600px;}.mail-img{display: block; width: 30px; border-radius: 6px;}.mail-title{margin-top: 1rem; font-size: 16px; margin-bottom: 1rem;}.mail-desc{margin: 1rem 0;}.mail-warning{margin-top: 1rem;}.mail-copyright{margin-top: 1rem;}</style> </head> <body> <div class="mail"> <img src="' +
+        config.ENV_URL_UI +
         '/favicon.ico" alt="' +
-        config.env.DB_NAME +
+        config.ENV_DB_NAME +
         '" class="mail-img"/> <h1 class="mail-title"> Welcome to ' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
         ', please reset your password. </h1> <div class="mail-value"> Account: <span class="username">' +
         payload.username +
         '</span> </div><div class="mail-value"> IP Address: <span class="ip">' +
@@ -947,7 +908,7 @@ export function generate_html(type = 'email-verify', payload: any): string {
         '" target="_blank" rel="referrer" class="mail-button" >' +
         payload.link +
         '</a > <div class="mail-warning"> If you didn\'t send this request, you can ignore this email </div><div class="mail-copyright"> © 2023 ' +
-        config.env.URL_UI +
+        config.ENV_URL_UI +
         ' | All rights reserved. </div></div></body></html>'
       );
 
@@ -959,24 +920,224 @@ export function generate_html(type = 'email-verify', payload: any): string {
 ///////////////////////
 // SETTINGS UTILS
 ///////////////////////
-export class validator_settings_init {
+export class settings_validator_init {
   private readonly options: options_i;
 
   constructor(options: options_i) {
     this.options = options;
   }
+
+  async edit_settings(credentials: any): Promise<any> {}
+}
+
+/*
+ * order_create_chat:
+ *
+ * creates an available slot on the options.chats array (hashmap) using order._id's last 2 bytes as an index and returns that slot
+ *
+ * available slot: undefined or an expired chat with last updated_at is more than * 1 hour
+ *
+ * [undefined, undefined, {expired}, {valid}, {expired}, undefined, {expired}, undefined, ...]
+ * e.g. index = 2 (order._id.toString().substring(20, 24))
+ * options.chats[index] = {new}
+ *
+ * if selected index is filled with valid chat which means a collision, try the adjacent slots starting at 1 left and 1 right and such
+ */
+export async function order_create_chat(
+  order_id: ObjectId,
+  options: options_i
+): Promise<any | null> {
+  // last 2 bytes of order._id (ffff)
+  const index: number = parseInt(order_id.toString().substring(20, 24), 16); // 0 - 65535
+
+  // if current index slot is available
+  if (options.chats[index] === undefined) {
+    options.chats[index] = {
+      order_id: order_id,
+      users: [],
+      messages: [],
+    };
+
+    return options.chats[index];
+  }
+
+  // fulfilled order with missing user_delivery_code means products delivered to the user,
+  // therefore slot is available for incoming new chat
+  const order: Document | null = await options.db.orders.findOne({
+    _id: options.chats[index].order_id,
+    user_delivery_code: { $exists: false }, // ($unset)
+    open: false,
+    error: '',
+  });
+
+  if (order) {
+    options.chats[index] = {
+      order_id: order_id,
+      users: [],
+      messages: [],
+    };
+
+    return options.chats[index];
+  }
+
+  // collision
+  const length = options.chats.length - 1;
+  const ratio_left = index / length; // left ratio 1.
+  const ratio_right = (length - index) / length; // right ratio 1.
+
+  for (let i: number = 0; i < options.chats.length; i++) {
+    const offset_left = Math.floor(i * ratio_left); // left weight 2.
+    const offset_right = Math.floor(i * ratio_right); // right weight 2.
+
+    const index_left: number = index - offset_left; // final left index 3.
+    const index_right: number = index + offset_right; // final right index 3.
+
+    if (options.chats[index_left] === undefined) {
+      options.chats[index_left] = {
+        order_id: order_id,
+        users: [],
+        messages: [],
+      };
+
+      return options.chats[index_left];
+    }
+
+    const order_left: Document | null = await options.db.orders.findOne({
+      _id: options.chats[index_left].order_id,
+      user_delivery_code: { $exists: false },
+      open: false,
+      error: '',
+    });
+
+    if (order_left) {
+      options.chats[index_left] = {
+        order_id: order_id,
+        users: [],
+        messages: [],
+      };
+
+      return options.chats[index_left];
+    }
+
+    if (options.chats[index_right] === undefined) {
+      options.chats[index_right] = {
+        order_id: order_id,
+        users: [],
+        messages: [],
+      };
+
+      return options.chats[index_right];
+    }
+
+    const order_right: Document | null = await options.db.orders.findOne({
+      _id: options.chats[index_right].order_id,
+      user_delivery_code: { $exists: false },
+      open: false,
+      error: '',
+    });
+
+    if (order_right) {
+      options.chats[index_right] = {
+        order_id: order_id,
+        users: [],
+        messages: [],
+      };
+
+      return options.chats[index_right];
+    }
+  }
+
+  return null;
+}
+
+export async function order_find_chat(
+  order_id: ObjectId,
+  options: options_i
+): Promise<any | null> {
+  const index: number = parseInt(order_id.toString().substring(20, 24), 16); // 0 - 65535
+
+  if (options.chats[index] !== undefined) {
+    if (options.chats[index].order_id.equals(order_id)) {
+      const order: Document | null = await options.db.orders.findOne({
+        _id: order_id,
+        user_delivery_code: { $exists: true }, // field exists and not an empty string (123456)
+        open: false,
+        error: '',
+      });
+
+      if (order) {
+        return options.chats[index];
+      }
+    }
+  }
+
+  // collision
+  const length = options.chats.length - 1;
+  const ratio_left = index / length; // left ratio 1.
+  const ratio_right = (length - index) / length; // right ratio 1.
+
+  for (let i: number = 0; i < options.chats.length; i++) {
+    const offset_left = Math.floor(i * ratio_left); // left weight 2.
+    const offset_right = Math.floor(i * ratio_right); // right weight 2.
+
+    const index_left: number = index - offset_left; // final left index 3.
+    const index_right: number = index + offset_right; // final right index 3.
+
+    if (options.chats[index_left] !== undefined) {
+      if (options.chats[index_left].order_id.equals(order_id)) {
+        const order_left: Document | null = await options.db.orders.findOne({
+          _id: order_id,
+          user_delivery_code: { $exists: true },
+          open: false,
+          error: '',
+        });
+
+        if (order_left) {
+          return options.chats[index_left];
+        }
+      }
+    }
+
+    if (options.chats[index_right] !== undefined) {
+      if (options.chats[index_right].order_id.equals(order_id)) {
+        const order_right: Document = await options.db.orders.findOne({
+          _id: order_id,
+          user_delivery_code: { $exists: true },
+          open: false,
+          error: '',
+        });
+
+        if (order_right) {
+          return options.chats[index_right];
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 export default {
-  validator_common_init,
-  validator_auth_init,
-  create_session,
-  generate_email_verification_token,
-  generate_password_reset_token,
-  generate_api_key,
-  create_user_doc,
-  return_user_profile,
-  validator_mail_init,
-  generate_html,
-  validator_settings_init,
+  // common utils
+  common_validator_init,
+
+  // user utils
+  user_validator_init,
+  user_create_session,
+  user_generate_email_verification_code,
+  user_generate_password_reset_code,
+  user_generate_ref_code,
+  user_create_doc,
+  user_return_profile,
+
+  // mail utils
+  mail_validator_init,
+  mail_generate_html,
+
+  // settings utils
+  settings_validator_init,
+
+  // order utils
+  order_create_chat,
+  order_find_chat,
 };

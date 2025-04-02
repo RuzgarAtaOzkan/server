@@ -16,10 +16,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }} # User of the server you want to ssh into
           script: |
             ls
-            cd ./apps/server
+            cd ./server
             git fetch
             git pull origin master
-            npm install
-            npm audit fix
-            npm run build
-            pm2 reload server --update-env
+            ./init.sh -r

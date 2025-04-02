@@ -8,19 +8,24 @@ import fastify_cors from '@fastify/cors';
 import fastify_rate_limit from '@fastify/rate-limit';
 import fastify_static from '@fastify/static';
 
+// INTERFACES
+import { options_i } from 'interfaces/common';
+
 // API
 import bind_routes from '../api';
 
 // CONFIG
 import config from '../config';
 
-async function load_fastify(options: any): Promise<FastifyInstance> {
+export async function load_fastify(
+  options: options_i
+): Promise<FastifyInstance> {
   // FASTIFY SERVER INSTANCE CONFIGURATIONS
 
   const server: FastifyInstance = Fastify({
     maxParamLength: 256, // url param length
     trustProxy: true, // for NGINX or any other proxy server
-    bodyLimit: 1000000, // no data more than 1mb is allowed in one request
+    bodyLimit: 500000, // no data more than 500kb is allowed in one request
     logger: {
       // pino logger module by default
       level: 'info',
@@ -33,22 +38,16 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
   await server.register(fastify_static, {
     root: process.cwd(),
     prefix: '/', // optional: default '/'
-    constraints: { host: config.env.URL_UI }, // optional: default {}
+    constraints: { host: config.ENV_URL_UI }, // optional: default {}
   });
 
   await server.register(fastify_cors, {
     credentials: true,
-    origin: [
-      'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://' + config.env.URL_UI,
-      'https://www.' + config.env.URL_UI,
-      'https://admin.' + config.env.URL_UI,
-    ],
+    origin: [config.ENV_URL_UI, config.ENV_URL_UI_LOCAL],
   });
 
   await server.register(fastify_cookie, {
-    secret: config.env.SESSION_SECRET,
+    secret: config.ENV_SESSION_SECRET,
     parseOptions: {},
   });
 
@@ -61,7 +60,7 @@ async function load_fastify(options: any): Promise<FastifyInstance> {
 
   bind_routes(server, options);
 
-  await server.listen({ port: Number(config.env.PORT), host: config.env.HOST });
+  await server.listen({ port: config.ENV_PORT, host: config.ENV_HOST });
 
   return server;
 }
