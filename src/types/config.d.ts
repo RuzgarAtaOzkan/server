@@ -3,7 +3,7 @@
 /**
  * Standard HTTP method strings
  */
-export type http_methods_t =
+export type http_method_t =
   | 'DELETE'
   | 'GET'
   | 'HEAD'
@@ -15,7 +15,7 @@ export type http_methods_t =
 /**
  *  dev data types
  */
-export type types_t =
+export type type_t =
   | 'objectId'
   | 'string'
   | 'number'
@@ -34,4 +34,7 @@ export type types_t =
 /**
  *  roles
  */
-export type roles_t = 'user' | 'admin';
+export type role_t = 'user' | 'admin';
+
+// blockchains
+export type blockchain_t = 'solana' | 'ethereum' | 'bitcoin';

@@ -3,16 +3,19 @@
 // CONFIG
 import config from '../config';
 
-const schema: any = {
+// INTERFACES
+import { model_i } from 'interfaces/models';
+
+const model: model_i = {
   name: 'users',
-  bsonType: config.type_object,
-  indexes: {
-    username: { unique: true },
-    email: { unique: true },
-    email_verification_code: { unique: true },
-    password_reset_code: { unique: true },
-    ref_code: { unique: true },
-  },
+  indexes: [
+    // [{ keys...}, { values...}]
+    [{ username: 1 }, { unique: true }],
+    [{ email: 1 }, { unique: true }],
+    [{ email_verification_code: 1 }, { unique: true }],
+    [{ password_reset_code: 1 }, { unique: true }],
+    [{ ref_code: 1 }, { unique: true }],
+  ],
   properties: {
     name: {
       bsonType: config.type_string,
@@ -50,16 +53,13 @@ const schema: any = {
     },
 
     city: {
-      bsonType: config.type_string, // Istanbul
+      bsonType: config.type_string, // istanbul
     },
     district: {
-      bsonType: config.type_string, // Buyukcekmece
-    },
-    neighbourhood: {
-      bsonType: config.type_string, // Sinanoba
+      bsonType: config.type_string, // buyukcekmece
     },
     address: {
-      bsonType: config.type_string, // Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
+      bsonType: config.type_string, // Sinanoba Mahallesi, Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
     },
     zip: {
       bsonType: config.type_number, // 34535
@@ -88,4 +88,4 @@ const schema: any = {
   },
 };
 
-export default schema;
+export default model;

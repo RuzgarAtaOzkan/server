@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import { CronJob } from 'cron';
+import axios from 'axios';
 
 // INTERFACES
 import { options_i } from 'interfaces/common';
@@ -11,8 +12,11 @@ import { options_i } from 'interfaces/common';
 // CONFIG
 import config from '../config';
 
+// UTILS
+import { sleep } from '../utils/common';
+
 async function mongodb_backup(
-  path: string = '/var/backups/' + config.ENV_DB_NAME
+  path: string = '/var/backups/' + config.ENV_DB_NAME,
 ): Promise<void> {
   if (fs.existsSync(path) === false) {
     fs.mkdirSync(path);
@@ -118,20 +122,206 @@ async function mongodb_backup(
   });
 }
 
-export function load_cron(options: options_i): void {
+async function redis_update_exchange(options: options_i): Promise<void> {
+  const settings = JSON.parse(await options.redis.get('settings'));
+
+  const url: string =
+    'https://v6.exchangerate-api.com/v6/' +
+    config.ENV_API_KEY_EXCHANGE +
+    '/latest/USD';
+  const res = await axios.get(url);
+
+  settings.exchange = res.data.conversion_rates;
+
+  await options.redis.set('settings', JSON.stringify(settings));
+}
+
+async function redis_update_blockchain_prices(
+  options: options_i,
+): Promise<void> {
+  const settings = JSON.parse(await options.redis.get('settings'));
+
+  for (let i: number = 0; i < config.blockchains.length; i++) {
+    const res = await axios.get(config.blockchains[i].url_binance_price);
+
+    const price: number = Number(res.data.price);
+
+    settings.blockchains[i].price = price;
+
+    // await sleep(500);
+  }
+
+  await options.redis.set('settings', JSON.stringify(settings));
+}
+
+// execute blockchains all wallet_scan functions (wallet_scan, wallet_scan_withdraw, wallet_scan_refund) to scan & process for incoming transactions
+async function wallet_scan(options: options_i): Promise<void> {
+  const wallet_scan_promises: Promise<void>[] = [];
+
+  for (let i: number = 0; i < config.blockchains.length; i++) {
+    wallet_scan_promises.push(config.blockchains[i].wallet_scan(options));
+
+    /*
+    wallet_scan_promises.push(
+      config.blockchains[i].wallet_scan_withdraw(options)
+    );
+
+    wallet_scan_promises.push(
+      config.blockchains[i].wallet_scan_refund(options)
+    );  
+    */
+  }
+
+  await Promise.all(wallet_scan_promises);
+}
+
+// execute collected socket clients send function from options to prevent connection drops
+function socket_ping(options: options_i): void {
+  for (let i: number = 0; i < options.sockets.length; i++) {
+    if (options.sockets[i].readyState !== WebSocket.OPEN) {
+      continue;
+    }
+
+    options.sockets[i].send(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'ping',
+        id: 1,
+      }),
+    );
+  }
+}
+
+export async function load_cron(options: options_i) {
+  let resolve: Function = function (code: number) {};
+
+  const cron = {
+    jobs: new Array(5), // we currently have 5 jobs
+    open: function () {
+      resolve = function () {};
+
+      for (let i: number = 0; i < this.jobs.length; i++) {
+        this.jobs[i].start();
+      }
+    },
+    close: function () {
+      for (let i: number = 0; i < this.jobs.length; i++) {
+        this.jobs[i].stop();
+      }
+
+      return new Promise((res) => {
+        for (let i: number = 0; i < this.jobs.length; i++) {
+          if (this.jobs[i].finished === false) {
+            resolve = res;
+            return;
+          }
+        }
+
+        res(0);
+      });
+    },
+  };
+
   // every 9 seconds
-  new CronJob('*/9 * * * * *', function () {}).start();
+  cron.jobs[0] = new CronJob('*/9 * * * * *', async function () {
+    cron.jobs[0].finished = false;
+
+    await Promise.all([
+      redis_update_blockchain_prices(options),
+      wallet_scan(options),
+      socket_ping(options),
+    ]);
+
+    cron.jobs[0].finished = true;
+
+    for (let i: number = 0; i < cron.jobs.length; i++) {
+      if (cron.jobs[i].finished === false) {
+        return;
+      }
+    }
+
+    resolve(0);
+  });
 
   // every minute
-  new CronJob('59 * * * * *', function () {}).start();
+  cron.jobs[1] = new CronJob('59 * * * * *', async function () {
+    cron.jobs[1].finished = false;
+
+    await Promise.all([]);
+
+    cron.jobs[1].finished = true;
+
+    for (let i: number = 0; i < cron.jobs.length; i++) {
+      if (cron.jobs[i].finished === false) {
+        return;
+      }
+    }
+
+    resolve(0);
+  });
 
   // every hour
-  new CronJob('00 59 * * * *', function () {}).start();
+  cron.jobs[2] = new CronJob('00 59 * * * *', async function () {
+    cron.jobs[2].finished = false;
+
+    await Promise.all([]);
+
+    cron.jobs[2].finished = true;
+
+    for (let i: number = 0; i < cron.jobs.length; i++) {
+      if (cron.jobs[i].finished === false) {
+        return;
+      }
+    }
+
+    resolve(0);
+  });
 
   // every midnight (UTC)
-  new CronJob('00 00 00 * * *', function () {
-    mongodb_backup();
-  }).start();
+  cron.jobs[3] = new CronJob('00 00 00 * * *', async function () {
+    cron.jobs[3].finished = false;
+
+    await Promise.all([mongodb_backup()]);
+
+    cron.jobs[3].finished = true;
+
+    for (let i: number = 0; i < cron.jobs.length; i++) {
+      if (cron.jobs[i].finished === false) {
+        return;
+      }
+    }
+
+    resolve(0);
+  });
+
+  // every month (first day at 00:00)
+  cron.jobs[4] = new CronJob('00 00 00 1 * *', async function () {
+    cron.jobs[4].finished = false;
+
+    await Promise.all([redis_update_exchange(options)]);
+
+    cron.jobs[4].finished = true;
+
+    for (let i: number = 0; i < cron.jobs.length; i++) {
+      if (cron.jobs[i].finished === false) {
+        return;
+      }
+    }
+
+    resolve(0);
+  });
+
+  // redis_update_exchange(options);
+  await redis_update_blockchain_prices(options);
+  await wallet_scan(options);
+  socket_ping(options);
+
+  for (let i: number = 0; i < cron.jobs.length; i++) {
+    cron.jobs[i].finished = true;
+    cron.jobs[i].start();
+  }
+
+  return cron;
 }
 
 export default load_cron;

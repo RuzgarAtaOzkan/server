@@ -9,6 +9,30 @@ export function sleep(ms: number = 1000): Promise<void> {
   });
 }
 
+// deep freezes an object
+export function freeze(source: object) {
+  // returns if the surface of the object is frozen
+  if (Object.isFrozen(source)) {
+    return source;
+  }
+
+  Object.freeze(source);
+
+  const values: any[] = Object.values(source);
+
+  for (let i: number = 0; i < values.length; i++) {
+    if (typeof values[i] !== 'object' || values[i] === null) {
+      continue;
+    }
+
+    freeze(values[i]);
+  }
+
+  return source;
+}
+
+// removes unneccessary spaces in a string, useful for user based inputs such as name, address, etc.
+// "   test   1   " => "test 1"
 export function str_remove_space(source: string): string {
   let result: string = '';
 
@@ -16,17 +40,25 @@ export function str_remove_space(source: string): string {
     // "  test  1  " => "test 1"
     // if current character is empty and the next character is empty or undefined, remove it
     if (
-      source[i] === ' ' &&
-      (source[i + 1] === undefined || source[i + 1] === ' ')
+      (source[i] === ' ' || source[i] === '\t' || source[i] === '\u00A0') &&
+      (source[i + 1] === ' ' ||
+        source[i + 1] === '\t' ||
+        source[i + 1] === '\u00A0' ||
+        source[i + 1] === undefined)
     ) {
+      continue;
+    }
+
+    if (source[i] === '\t' || source[i] === '\u00A0') {
+      result = result + ' ';
       continue;
     }
 
     result = result + source[i];
   }
 
-  if (result[0] === ' ') {
-    return result.replace(' ', '');
+  if (result[0] === ' ' || result[0] === '\t' || result[0] === '\u00A0') {
+    return result.replace(result[0], '');
   }
 
   return result;
@@ -147,14 +179,115 @@ export function sysgmt(): number {
     i++;
   }
 
-  return Number(gmt) / 100;
+  const result: number = Number(gmt) / 100;
+
+  return result;
+}
+
+export function base58_encode(bytes: Uint8Array): string {
+  const base58: string =
+    '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  let result: string = '';
+
+  // calculate the total value of the hex bytes
+  let total: bigint = BigInt(0);
+  for (let i: number = 0; i < bytes.length; i++) {
+    // start from the last index
+    const index: number = bytes.length - i - 1;
+
+    // calculate each hex's corresponding integer
+    const value: bigint = BigInt(bytes[index] * Math.pow(256, i));
+
+    // add them together to get the final value
+    total += value;
+  }
+
+  while (total > 0) {
+    const remainder: number = Number(total % 58n);
+    result = base58[remainder] + result;
+    total = BigInt(total / 58n);
+  }
+
+  for (let i: number = 0; i < bytes.length; i++) {
+    if (bytes[i] !== 0) {
+      break;
+    }
+
+    result = base58[0] + result;
+  }
+
+  return result;
+}
+
+export function base58_decode(source: string): Uint8Array {
+  const base58: string =
+    '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  // zeros in front
+  let zeros: number = 0;
+  const values: number[] = []; // LE (little endian)
+
+  let total: bigint = BigInt(base58.indexOf(source[0]));
+  for (let i: number = 0; i < source.length - 1; i++) {
+    total = total * 58n;
+    total = total + BigInt(base58.indexOf(source[i + 1]));
+  }
+
+  for (let i: number = 0; i < source.length; i++) {
+    if (source[i] !== '1') {
+      break;
+    }
+
+    zeros++;
+  }
+
+  while (total > 0) {
+    const remainder: number = Number(total % 256n);
+    total = total / 256n;
+    values.push(remainder);
+  }
+
+  const length: number = zeros + values.length;
+  const result: Uint8Array = new Uint8Array(length);
+
+  for (let i: number = 0; i < zeros; i++) {
+    result[i] = 0;
+  }
+
+  for (let i: number = 0; i < values.length; i++) {
+    result[zeros + i] = values[values.length - i - 1]; // start from the end for LE
+  }
+
+  return result;
+}
+
+// removes unneccessary dust money (fixdecimals)
+// eg: 0.0051261268769453 => 0.00512
+export function fixd(value: number, price: number): number {
+  // minimum USD
+  const min: number = 0.1;
+
+  let fix: number = 0;
+  while (price > min) {
+    price = price / 10;
+    fix++;
+  }
+
+  const result: number = Number(value.toFixed(fix));
+
+  return result;
 }
 
 export default {
   sleep,
+  freeze,
   str_remove_space,
   random,
   add_commas,
   fhandle,
   sysgmt,
+  base58_encode,
+  base58_decode,
+  fixd,
 };

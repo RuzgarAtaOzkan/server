@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { FastifyInstance } from 'fastify';
-import { routes_i, services_i } from 'interfaces/api';
+import { services_i } from 'interfaces/api';
 import { options_i } from 'interfaces/common';
 
 // API > MIDDLEWARE
@@ -17,11 +17,11 @@ function bind_mail_routes(
   options: options_i
 ): FastifyInstance {
   // @ Route Options Area
-  const routes: routes_i = {
-    mail_verification_link: {
+  const routes = [
+    {
       method: 'POST',
       url: '/v1' + config.endpoint_mail_verification_link,
-      preValidation: async function (request, reply): Promise<void> {
+      preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
@@ -39,8 +39,7 @@ function bind_mail_routes(
         }
       },
     },
-
-    mail_password_reset_link: {
+    {
       method: 'POST',
       url: '/v1' + config.endpoint_mail_password_reset_link,
       handler: async function (request: any, reply: any) {
@@ -57,10 +56,10 @@ function bind_mail_routes(
         }
       },
     },
-  };
+  ];
 
-  for (const key in routes) {
-    server.route(routes[key]);
+  for (let i: number = 0; i < routes.length; i++) {
+    server.route(routes[i]);
   }
 
   return server;

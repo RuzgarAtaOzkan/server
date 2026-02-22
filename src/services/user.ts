@@ -58,13 +58,13 @@ class service_user_init {
     }
 
     // redis expiration in seconds
-    let redis_exp: number = config.ENV_SESSION_LIFETIME_MS / 1000;
+    let redis_exp: number = config.ENV_COOKIE_LIFETIME_MS / 1000;
     let cookie_expires: undefined | Date = undefined;
 
     if (session.remember) {
       redis_exp = redis_exp * 30;
       cookie_expires = new Date(
-        Date.now() + config.ENV_SESSION_LIFETIME_MS * 30
+        Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30
       );
     }
 
@@ -83,21 +83,11 @@ class service_user_init {
   async edit_profile(credentials: any): Promise<any> {
     await this.validator.edit_profile(credentials, this.options);
 
+    const query: any = { _id: credentials.user._id };
+
     const $set: any = {
       updated_at: new Date(),
     };
-
-    if (credentials.name) {
-      $set.name = credentials.name;
-    }
-
-    if (credentials.username) {
-      $set.username = credentials.username;
-
-      if (credentials.username !== credentials.user.username) {
-        $set.username_changed_at = new Date();
-      }
-    }
 
     if (credentials.img) {
       const base64_buffer: string[] = credentials.img.split(';base64,');
@@ -125,6 +115,23 @@ class service_user_init {
       $set.img = img;
     }
 
+    if (credentials.name) {
+      $set.name = credentials.name;
+    }
+
+    // TODO: check username_changed_at prop in the updateOne query to prevent race conditions
+    if (credentials.username) {
+      $set.username = credentials.username;
+
+      if (credentials.username !== credentials.user.username) {
+        query.username_changed_at = {
+          $lt: new Date(Date.now() - config.time_one_day_ms * 30),
+        };
+
+        $set.username_changed_at = new Date();
+      }
+    }
+
     if (credentials.phone) {
       $set.phone = credentials.phone;
     }
@@ -137,10 +144,6 @@ class service_user_init {
       $set.district = credentials.district;
     }
 
-    if (credentials.neighbourhood) {
-      $set.neighbourhood = credentials.neighbourhood;
-    }
-
     if (credentials.address) {
       $set.address = credentials.address;
     }
@@ -150,10 +153,7 @@ class service_user_init {
     }
 
     // update user credentials
-    await this.options.db.users.updateOne(
-      { _id: credentials.user._id },
-      { $set: $set }
-    );
+    await this.options.db.users.updateOne(query, { $set: $set });
 
     return $set;
   }
@@ -181,7 +181,7 @@ class service_user_init {
 
     let expires: undefined | Date = undefined;
     if (credentials.remember) {
-      expires = new Date(Date.now() + config.ENV_SESSION_LIFETIME_MS * 30);
+      expires = new Date(Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30);
     }
 
     const result: any = {
@@ -206,7 +206,7 @@ class service_user_init {
 
     let expires: undefined | Date = undefined;
     if (credentials.remember) {
-      expires = new Date(Date.now() + config.ENV_SESSION_LIFETIME_MS * 30);
+      expires = new Date(Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30);
     }
 
     const result = {
@@ -228,39 +228,13 @@ class service_user_init {
     return true;
   }
 
-  async verify_email(code: string): Promise<any> {
-    const user: Document = await this.validator.verify_email(
-      code,
-      this.options
-    );
-
-    const email_verification_code: string =
-      await user_generate_email_verification_code(0, this.options);
-
-    await this.options.db.users.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          email_verified: true,
-          email_verification_code: email_verification_code,
-          updated_at: new Date(),
-        },
-      }
-    );
-
-    user.email_verified = true;
-
-    const profile = user_return_profile(user);
-
-    return profile;
-  }
-
   async reset_password(credentials: any): Promise<any> {
     const user: Document = await this.validator.reset_password(
       credentials,
       this.options
     );
 
+    // put an expired password reset code after user successfully reset his password
     const code: string = await user_generate_password_reset_code(
       0,
       this.options
@@ -281,12 +255,14 @@ class service_user_init {
     );
 
     // delete user sessions
+    /*
     const sessions = await this.options.redis.hGetAll('sessions');
     for (const key in sessions) {
       if (JSON.parse(sessions[key]).user_id === user._id.toString()) {
         this.options.redis.hDel('sessions', key);
       }
     }
+    */
 
     const profile = user_return_profile(user);
 
@@ -345,6 +321,33 @@ class service_user_init {
     };
 
     return result;
+  }
+
+  async verify_email(code: string): Promise<any> {
+    const user: Document = await this.validator.verify_email(
+      code,
+      this.options
+    );
+
+    const email_verification_code: string =
+      await user_generate_email_verification_code(0, this.options);
+
+    await this.options.db.users.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          email_verified: true,
+          email_verification_code: email_verification_code,
+          updated_at: new Date(),
+        },
+      }
+    );
+
+    user.email_verified = true;
+
+    const profile = user_return_profile(user);
+
+    return profile;
   }
 }
 

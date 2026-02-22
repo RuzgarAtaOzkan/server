@@ -122,8 +122,7 @@ class service_mail_init {
       this.options
     );
 
-    const endpoint: string =
-      config.endpoint_user_password_reset.split(':')[0] + code;
+    const endpoint: string = config.endpoint_user_password_reset + '/' + code;
 
     await this.options.db.users.updateOne(
       { email: credentials.email },

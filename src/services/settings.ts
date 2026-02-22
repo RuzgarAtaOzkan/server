@@ -1864,18 +1864,6 @@ class service_settings_init {
     return result;
   }
 
-  async edit_settings(credentials: any): Promise<any> {
-    await this.validator.edit_settings(credentials);
-
-    const settings: any | null = JSON.parse(
-      await this.options.redis.get('settings')
-    );
-
-    await this.options.redis.set('settings', JSON.stringify(settings));
-
-    return settings;
-  }
-
   get_cities(credentials: any): any[] {
     return this.cities;
   }

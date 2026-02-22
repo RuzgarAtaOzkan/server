@@ -18,7 +18,7 @@ export async function validate_user(
 ): Promise<Document | null> {
   request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
 
-  const sid: string | undefined = request.cookies[config.ENV_SESSION_NAME];
+  const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
 
   if (sid === undefined) {
     reply.status(401).send('ERR_UNAUTHORIZED');
@@ -60,7 +60,7 @@ export async function validate_admin(
 ): Promise<Document | null> {
   request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
 
-  const sid: string | undefined = request.cookies[config.ENV_SESSION_NAME];
+  const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
 
   if (sid === undefined) {
     reply.status(401).send('ERR_UNAUTHORIZED');

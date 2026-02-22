@@ -17,13 +17,16 @@ import bind_routes from '../api';
 // CONFIG
 import config from '../config';
 
+// UTILS
+import { random } from '../utils/common';
+
 export async function load_fastify(
   options: options_i
 ): Promise<FastifyInstance> {
   // FASTIFY SERVER INSTANCE CONFIGURATIONS
 
   const server: FastifyInstance = Fastify({
-    maxParamLength: 256, // url param length
+    routerOptions: { maxParamLength: 256 }, // url param length
     trustProxy: true, // for NGINX or any other proxy server
     bodyLimit: 500000, // no data more than 500kb is allowed in one request
     logger: {
@@ -44,10 +47,11 @@ export async function load_fastify(
   await server.register(fastify_cors, {
     credentials: true,
     origin: [config.ENV_URL_UI, config.ENV_URL_UI_LOCAL],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   await server.register(fastify_cookie, {
-    secret: config.ENV_SESSION_SECRET,
+    secret: random(),
     parseOptions: {},
   });
 
@@ -60,7 +64,7 @@ export async function load_fastify(
 
   bind_routes(server, options);
 
-  await server.listen({ port: config.ENV_PORT, host: config.ENV_HOST });
+  await server.listen({ host: config.ENV_HOST, port: config.ENV_PORT });
 
   return server;
 }
