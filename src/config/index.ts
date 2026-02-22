@@ -49,18 +49,18 @@ const config: config_i = {
   ENV_COOKIE_NAME: process.env.COOKIE_NAME || 'sid',
   ENV_COOKIE_LIFETIME_MS: 1000 * 60 * 60 * 24,
 
-  ENV_DB_URL: process.env.DB_URL || 'mongodb://localhost:27017',
-  ENV_DB_NAME: process.env.DB_NAME || 'domain',
+  ENV_DB_URL: process.env.DB_URL || 'mongodb://127.0.0.1:27017',
+  ENV_DB_NAME: process.env.DB_NAME || 'server',
 
   ENV_ROLE_KEY_ADMIN: random() || process.env.ROLE_KEY_ADMIN || '',
   ENV_ROLE_KEY_USER: process.env.ROLE_KEY_USER || random(),
 
   ENV_EMAIL_HOST: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  ENV_EMAIL_USERNAME: process.env.EMAIL_USERNAME || 'mail@domain.com',
+  ENV_EMAIL_USERNAME: process.env.EMAIL_USERNAME || 'info@server.com',
   ENV_EMAIL_PASSWORD: process.env.EMAIL_PASSWORD || '',
 
-  ENV_URL_API: process.env.URL_API || 'https://api.domain.com',
-  ENV_URL_UI: process.env.URL_UI || 'https://domain.com',
+  ENV_URL_API: process.env.URL_API || 'https://api.server.com',
+  ENV_URL_UI: process.env.URL_UI || 'https://server.com',
   ENV_URL_UI_LOCAL: process.env.URL_UI_LOCAL || 'http://127.0.0.1:3000',
 
   ENV_API_KEY_GARANTI: process.env.API_KEY_GARANTI || '',
