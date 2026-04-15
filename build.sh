@@ -90,7 +90,7 @@ fi
 if [ -n "$ACTION" ]; then
   systemctl "$ACTION" "${NAME}.service"
 
-  journalctl -u "${NAME}.service" --since "10 seconds ago" -f &
+  journalctl -u "${NAME}.service" --since "30 seconds ago" -f &
 
   PID=$!
 

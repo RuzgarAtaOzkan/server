@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": "src",
     "lib": ["ES2023"],
     "module": "commonjs",
     "pretty": true,
@@ -9,6 +8,9 @@
     "strict": true,
     "esModuleInterop": true,
     "rootDir": "./src",
-    "outDir": "./build"
+    "outDir": "./build",
+    "paths": {
+      "*": ["./src/*"]
+    }
   }
 }
