@@ -13,14 +13,14 @@ import { options_i } from 'interfaces/common';
 import { blockchain_i } from 'interfaces/config';
 
 // UTILS
-import { sleep, base58_decode } from '../utils/common';
+import { sleep, base58_decode, fixd } from '../utils/common';
 import { order_create_doc } from '../utils/services';
 import * as ed25519 from './crypto/ed25519';
 import * as secp256k1 from './crypto/secp256k1';
 import * as sha3 from './crypto/sha3';
 
 export async function socket_wallet_connect_solana(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'solana';
 
@@ -52,7 +52,7 @@ export async function socket_wallet_connect_solana(
     if (data.result === true || data.result === false) {
       await options.db.wallets.updateOne(
         { _id: ObjectId.createFromHexString(data.id) },
-        { $unset: { helius_subscription: 1 } }
+        { $unset: { helius_subscription: 1 } },
       );
 
       return;
@@ -62,7 +62,7 @@ export async function socket_wallet_connect_solana(
     if (data.result) {
       await options.db.wallets.updateOne(
         { _id: ObjectId.createFromHexString(data.id) },
-        { $set: { helius_subscription: data.result } }
+        { $set: { helius_subscription: data.result } },
       );
 
       return;
@@ -93,7 +93,7 @@ export async function socket_wallet_connect_solana(
             id: wallet._id.toString(),
             method: 'accountUnsubscribe',
             params: [wallet.helius_subscription],
-          })
+          }),
         );
       }
 
@@ -106,7 +106,7 @@ export async function socket_wallet_connect_solana(
       if (expired) {
         options.db.wallets.updateOne(
           { _id: wallet._id, status: 0 },
-          { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+          { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
         );
 
         // unsubscribe that public key from websocket
@@ -116,7 +116,7 @@ export async function socket_wallet_connect_solana(
             id: wallet._id.toString(),
             method: 'accountUnsubscribe',
             params: [wallet.helius_subscription],
-          })
+          }),
         );
       }
 
@@ -126,7 +126,7 @@ export async function socket_wallet_connect_solana(
     // lock the wallet to status 1
     const wallet_update: UpdateResult = await options.db.wallets.updateOne(
       { _id: wallet._id, status: 0 },
-      { $set: { status: 1 } }
+      { $set: { status: 1 } },
     );
 
     // prevents concurrent validation of a wallet (scan & socket) thus causing inserting multiple same orders
@@ -142,7 +142,7 @@ export async function socket_wallet_connect_solana(
           _id: ObjectId.createFromHexString(wallet.basket[i]._id),
           quantity: { $gte: wallet.basket[i].quantity },
         },
-        { $inc: { quantity: -wallet.basket[i].quantity } }
+        { $inc: { quantity: -wallet.basket[i].quantity } },
       );
 
       if (product_update.modifiedCount === 0) {
@@ -151,13 +151,13 @@ export async function socket_wallet_connect_solana(
             {
               _id: ObjectId.createFromHexString(wallet.basket[j]._id),
             },
-            { $inc: { quantity: wallet.basket[j].quantity } }
+            { $inc: { quantity: wallet.basket[j].quantity } },
           );
         }
 
         options.db.wallets.updateOne(
           { _id: wallet._id, status: 1 },
-          { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+          { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
         );
 
         // unsubscribe that public key from websocket
@@ -167,7 +167,7 @@ export async function socket_wallet_connect_solana(
             id: wallet._id.toString(),
             method: 'accountUnsubscribe',
             params: [wallet.helius_subscription],
-          })
+          }),
         );
 
         // TODO: notify user that their order will be refunded back to them because of the inconsistencies of the qauntites of the products
@@ -186,7 +186,7 @@ export async function socket_wallet_connect_solana(
         id: wallet._id.toString(),
         method: 'accountUnsubscribe',
         params: [wallet.helius_subscription],
-      })
+      }),
     );
 
     /*
@@ -232,7 +232,7 @@ export async function socket_wallet_connect_solana(
 }
 
 export async function socket_wallet_connect_ethereum(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'ethereum';
 
@@ -258,7 +258,7 @@ export async function socket_wallet_connect_ethereum(
         id: 1,
         method: 'eth_subscribe',
         params: ['newHeads'],
-      })
+      }),
     );
   });
 
@@ -374,7 +374,7 @@ export async function socket_wallet_connect_ethereum(
           if (expired) {
             options.db.wallets.updateOne(
               { _id: wallets[i]._id, status: 0 },
-              { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+              { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
             );
           }
 
@@ -384,7 +384,7 @@ export async function socket_wallet_connect_ethereum(
         // lock the wallet to status 1
         const wallet_update: UpdateResult = await options.db.wallets.updateOne(
           { _id: wallets[i]._id, status: 0 },
-          { $set: { status: 1 } }
+          { $set: { status: 1 } },
         );
 
         // prevents concurrent validation of a wallet (scan & socket) thus causing inserting multiple same orders
@@ -402,7 +402,7 @@ export async function socket_wallet_connect_ethereum(
                 _id: ObjectId.createFromHexString(wallets[i].basket[k]._id),
                 quantity: { $gte: wallets[i].basket[k].quantity },
               },
-              { $inc: { quantity: -wallets[i].basket[k].quantity } }
+              { $inc: { quantity: -wallets[i].basket[k].quantity } },
             );
 
           if (product_update.modifiedCount === 0) {
@@ -411,7 +411,7 @@ export async function socket_wallet_connect_ethereum(
                 {
                   _id: ObjectId.createFromHexString(wallets[i].basket[l]._id),
                 },
-                { $inc: { quantity: wallets[i].basket[l].quantity } }
+                { $inc: { quantity: wallets[i].basket[l].quantity } },
               );
             }
 
@@ -419,7 +419,7 @@ export async function socket_wallet_connect_ethereum(
 
             options.db.wallets.updateOne(
               { _id: wallets[i]._id, status: 1 },
-              { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+              { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
             );
 
             break;
@@ -453,7 +453,7 @@ export async function socket_wallet_connect_ethereum(
 }
 
 export async function socket_wallet_connect_bitcoin(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'bitcoin';
 
@@ -468,7 +468,7 @@ export async function socket_wallet_connect_bitcoin(
 // scans the whole database for an incoming transactions as chunks for 1 time with the given limit then breaks and stops execution
 // [wallet, wallet] [wallet, wallet] [wallet] (break while loop)
 export async function cron_wallet_scan_solana(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'solana'; // blockchain id
   const settings = JSON.parse(await options.redis.get('settings'));
@@ -526,11 +526,12 @@ export async function cron_wallet_scan_solana(
           price += wallets[i].basket[j].price;
         }
 
-        const amount: number = price / blockchain_price;
+        let amount: number = price / blockchain_price;
+        amount = fixd(amount, blockchain_price); // remove dust money
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },
-          { $set: { amount: amount, created_at: new Date() } }
+          { $set: { amount: amount, created_at: new Date() } },
         );
       }
     }
@@ -543,7 +544,7 @@ export async function cron_wallet_scan_solana(
         method: 'getMultipleAccounts',
         params: [publics],
       },
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { 'Content-Type': 'application/json' } },
     );
 
     for (let i: number = 0; i < res.data.result.value.length; i++) {
@@ -567,7 +568,7 @@ export async function cron_wallet_scan_solana(
               id: wallets[i]._id.toString(),
               method: 'accountUnsubscribe',
               params: [wallets[i].helius_subscription],
-            })
+            }),
           );
         }
 
@@ -606,7 +607,7 @@ export async function cron_wallet_scan_solana(
         if (expired) {
           options.db.wallets.updateOne(
             { _id: wallets[i]._id, status: 0 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
 
           // unsubscribe that public key from websocket
@@ -616,7 +617,7 @@ export async function cron_wallet_scan_solana(
               id: wallets[i]._id.toString(),
               method: 'accountUnsubscribe',
               params: [wallets[i].helius_subscription],
-            })
+            }),
           );
         }
 
@@ -626,7 +627,7 @@ export async function cron_wallet_scan_solana(
       // lock the wallet to status 1
       const wallet_update: UpdateResult = await options.db.wallets.updateOne(
         { _id: wallets[i]._id, status: 0 },
-        { $set: { status: 1 } }
+        { $set: { status: 1 } },
       );
 
       // prevents concurrent validation of a wallet (scan & socket) thus causing inserting multiple same orders
@@ -643,7 +644,7 @@ export async function cron_wallet_scan_solana(
               _id: ObjectId.createFromHexString(wallets[i].basket[j]._id),
               quantity: { $gte: wallets[i].basket[j].quantity },
             },
-            { $inc: { quantity: -wallets[i].basket[j].quantity } }
+            { $inc: { quantity: -wallets[i].basket[j].quantity } },
           );
 
         if (product_update.modifiedCount === 0) {
@@ -652,13 +653,13 @@ export async function cron_wallet_scan_solana(
               {
                 _id: ObjectId.createFromHexString(wallets[i].basket[k]._id),
               },
-              { $inc: { quantity: wallets[i].basket[k].quantity } }
+              { $inc: { quantity: wallets[i].basket[k].quantity } },
             );
           }
 
           options.db.wallets.updateOne(
             { _id: wallets[i]._id, status: 1 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
 
           // unsubscribe that public key from websocket
@@ -668,7 +669,7 @@ export async function cron_wallet_scan_solana(
               id: wallets[i]._id.toString(),
               method: 'accountUnsubscribe',
               params: [wallets[i].helius_subscription],
-            })
+            }),
           );
 
           product_update_err = true;
@@ -694,7 +695,7 @@ export async function cron_wallet_scan_solana(
           id: wallets[i]._id.toString(),
           method: 'accountUnsubscribe',
           params: [wallets[i].helius_subscription],
-        })
+        }),
       );
     }
 
@@ -708,7 +709,7 @@ export async function cron_wallet_scan_solana(
 }
 
 export async function cron_wallet_scan_ethereum(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'ethereum'; // blockchain id
   const settings = JSON.parse(await options.redis.get('settings'));
@@ -762,11 +763,12 @@ export async function cron_wallet_scan_ethereum(
           price += wallets[i].basket[j].price;
         }
 
-        const amount: number = price / blockchain_price;
+        let amount: number = price / blockchain_price;
+        amount = fixd(amount, blockchain_price); // remove dust money
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },
-          { $set: { amount: amount, created_at: new Date() } }
+          { $set: { amount: amount, created_at: new Date() } },
         );
       }
     }
@@ -802,7 +804,7 @@ export async function cron_wallet_scan_ethereum(
         if (expired) {
           options.db.wallets.updateOne(
             { _id: wallets[index]._id, status: 0 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
         }
 
@@ -812,7 +814,7 @@ export async function cron_wallet_scan_ethereum(
       // lock the wallet to status 1
       const wallet_update: UpdateResult = await options.db.wallets.updateOne(
         { _id: wallets[index]._id, status: 0 },
-        { $set: { status: 1 } }
+        { $set: { status: 1 } },
       );
 
       // prevents concurrent validation of a wallet (scan & socket) thus causing inserting multiple same orders
@@ -829,7 +831,7 @@ export async function cron_wallet_scan_ethereum(
               _id: ObjectId.createFromHexString(wallets[index].basket[j]._id),
               quantity: { $gte: wallets[index].basket[j].quantity },
             },
-            { $inc: { quantity: -wallets[index].basket[j].quantity } }
+            { $inc: { quantity: -wallets[index].basket[j].quantity } },
           );
 
         if (product_update.modifiedCount === 0) {
@@ -838,13 +840,13 @@ export async function cron_wallet_scan_ethereum(
               {
                 _id: ObjectId.createFromHexString(wallets[index].basket[k]._id),
               },
-              { $inc: { quantity: wallets[index].basket[k].quantity } }
+              { $inc: { quantity: wallets[index].basket[k].quantity } },
             );
           }
 
           options.db.wallets.updateOne(
             { _id: wallets[index]._id, status: 1 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
 
           product_update_err = true;
@@ -870,7 +872,7 @@ export async function cron_wallet_scan_ethereum(
 }
 
 export async function cron_wallet_scan_bitcoin(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   const id: string = 'bitcoin'; // blockchain id
   const settings = JSON.parse(await options.redis.get('settings'));
@@ -928,7 +930,7 @@ export async function cron_wallet_scan_bitcoin(
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },
-          { $set: { amount: amount, created_at: new Date() } }
+          { $set: { amount: amount, created_at: new Date() } },
         );
       }
     }
@@ -964,7 +966,7 @@ export async function cron_wallet_scan_bitcoin(
         if (expired) {
           options.db.wallets.updateOne(
             { _id: wallets[index]._id, status: 0 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
         }
 
@@ -974,7 +976,7 @@ export async function cron_wallet_scan_bitcoin(
       // lock the wallet to status 1
       const wallet_update: UpdateResult = await options.db.wallets.updateOne(
         { _id: wallets[index]._id, status: 0 },
-        { $set: { status: 1 } }
+        { $set: { status: 1 } },
       );
 
       // prevents concurrent validation of a wallet (scan & socket) thus causing inserting multiple same orders
@@ -991,7 +993,7 @@ export async function cron_wallet_scan_bitcoin(
               _id: ObjectId.createFromHexString(wallets[index].basket[j]._id),
               quantity: { $gte: wallets[index].basket[j].quantity },
             },
-            { $inc: { quantity: -wallets[index].basket[j].quantity } }
+            { $inc: { quantity: -wallets[index].basket[j].quantity } },
           );
 
         if (product_update.modifiedCount === 0) {
@@ -1000,13 +1002,13 @@ export async function cron_wallet_scan_bitcoin(
               {
                 _id: ObjectId.createFromHexString(wallets[index].basket[k]._id),
               },
-              { $inc: { quantity: wallets[index].basket[k].quantity } }
+              { $inc: { quantity: wallets[index].basket[k].quantity } },
             );
           }
 
           options.db.wallets.updateOne(
             { _id: wallets[index]._id, status: 1 },
-            { $set: { status: -1 }, $unset: { helius_subscription: 1 } }
+            { $set: { status: -1 }, $unset: { helius_subscription: 1 } },
           );
 
           product_update_err = true;
@@ -1033,7 +1035,7 @@ export async function cron_wallet_scan_bitcoin(
 
 // withdraw the balance to our personal main wallet
 export async function cron_wallet_scan_withdraw_solana(
-  options: options_i
+  options: options_i,
 ): Promise<void> {
   return;
 
@@ -1055,10 +1057,10 @@ export async function cron_wallet_scan_withdraw_solana(
       id: 1,
       method: 'getLatestBlockhash',
     },
-    { headers: { 'Content-Type': 'application/json' } }
+    { headers: { 'Content-Type': 'application/json' } },
   );
   const blockhash: Uint8Array = base58_decode(
-    res_blockhash.data.result.value.blockhash
+    res_blockhash.data.result.value.blockhash,
   );
 
   const limit: number = 32; // chunk size
@@ -1084,7 +1086,7 @@ export async function cron_wallet_scan_withdraw_solana(
         method: 'getMultipleAccounts',
         params: [publics],
       },
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { 'Content-Type': 'application/json' } },
     );
 
     for (let i: number = 0; i < res_accounts.data.result.value.length; i++) {
@@ -1093,7 +1095,7 @@ export async function cron_wallet_scan_withdraw_solana(
       const seed: Uint8Array = base58_decode(wallets[i].private);
       const from: Uint8Array = base58_decode(wallets[i].public);
       const to: Uint8Array = base58_decode(
-        'GPMztJSu28d8fLGW6sVarXSGBxMToxA4n4GAdyA3qmiJ'
+        'GPMztJSu28d8fLGW6sVarXSGBxMToxA4n4GAdyA3qmiJ',
       );
 
       const fee: bigint = BigInt(Math.floor(5000 * 1.25)); // in lamports
@@ -1178,24 +1180,24 @@ export async function cron_wallet_scan_withdraw_solana(
 }
 
 export async function cron_wallet_scan_withdraw_ethereum(
-  options: options_i
+  options: options_i,
 ): Promise<void> {}
 
 export async function cron_wallet_scan_withdraw_bitcoin(
-  options: options_i
+  options: options_i,
 ): Promise<void> {}
 
 // refund the low balance to the client back
 export async function cron_wallet_scan_refund_solana(
-  options: options_i
+  options: options_i,
 ): Promise<void> {}
 
 export async function cron_wallet_scan_refund_ethereum(
-  options: options_i
+  options: options_i,
 ): Promise<void> {}
 
 export async function cron_wallet_scan_refund_bitcoin(
-  options: options_i
+  options: options_i,
 ): Promise<void> {}
 
 export default {
