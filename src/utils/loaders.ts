@@ -15,9 +15,12 @@ import { blockchain_i } from 'interfaces/config';
 // UTILS
 import { sleep, base58_decode, fixd } from '../utils/common';
 import { order_create_doc } from '../utils/services';
-import * as ed25519 from './crypto/ed25519';
-import * as secp256k1 from './crypto/secp256k1';
-import * as sha3 from './crypto/sha3';
+
+// UTILS/CRYPTO
+/* (solana, ethereum & bitcoin curve math and hash functions for generating public keys and cryptographic signatures) */
+import * as ed25519 from './crypto/ed25519'; /*! noble-ed25519 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
+import * as secp256k1 from './crypto/secp256k1'; /*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
+import * as sha3 from './crypto/sha3'; /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 
 export async function socket_wallet_connect_solana(
   options: options_i,
@@ -471,7 +474,7 @@ export async function cron_wallet_scan_solana(
   options: options_i,
 ): Promise<void> {
   const id: string = 'solana'; // blockchain id
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   let blockchain: blockchain_i | any = null;
   let blockchain_price: number = 0;
@@ -712,7 +715,7 @@ export async function cron_wallet_scan_ethereum(
   options: options_i,
 ): Promise<void> {
   const id: string = 'ethereum'; // blockchain id
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   let blockchain: blockchain_i | any = null;
   let blockchain_price: number = 0;
@@ -875,7 +878,7 @@ export async function cron_wallet_scan_bitcoin(
   options: options_i,
 ): Promise<void> {
   const id: string = 'bitcoin'; // blockchain id
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   let blockchain: blockchain_i | any = null;
   let blockchain_price: number = 0;

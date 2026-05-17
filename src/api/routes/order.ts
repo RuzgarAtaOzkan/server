@@ -14,13 +14,9 @@ import config from '../../config';
 function bind_order_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: any,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: '/v1' + config.endpoint_orders,
@@ -31,9 +27,8 @@ function bind_order_routes(
         const credentials: any = { ...request.query, user: request.user };
 
         try {
-          const orders: Document[] = await services.order.get_orders(
-            credentials
-          );
+          const orders: Document[] =
+            await services.order.get_orders(credentials);
 
           reply.send(orders);
         } catch (err: any) {
@@ -48,9 +43,8 @@ function bind_order_routes(
         const credentials: any = { code: request.params.code };
 
         try {
-          const order: Document = await services.order.deliver_orders(
-            credentials
-          );
+          const order: Document =
+            await services.order.deliver_orders(credentials);
 
           reply.send(order);
         } catch (err: any) {

@@ -123,7 +123,7 @@ async function mongodb_backup(
 }
 
 async function redis_update_exchange(options: options_i): Promise<void> {
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   const url: string =
     'https://v6.exchangerate-api.com/v6/' +
@@ -133,13 +133,13 @@ async function redis_update_exchange(options: options_i): Promise<void> {
 
   settings.exchange = res.data.conversion_rates;
 
-  await options.redis.set('settings', JSON.stringify(settings));
+  await options.redis.SET('settings', JSON.stringify(settings));
 }
 
 async function redis_update_blockchain_prices(
   options: options_i,
 ): Promise<void> {
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   for (let i: number = 0; i < config.blockchains.length; i++) {
     const res = await axios.get(config.blockchains[i].url_binance_price);
@@ -151,7 +151,7 @@ async function redis_update_blockchain_prices(
     // await sleep(500);
   }
 
-  await options.redis.set('settings', JSON.stringify(settings));
+  await options.redis.SET('settings', JSON.stringify(settings));
 }
 
 // execute blockchains all wallet_scan functions (wallet_scan, wallet_scan_withdraw, wallet_scan_refund) to scan & process for incoming transactions

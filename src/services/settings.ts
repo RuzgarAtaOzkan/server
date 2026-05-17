@@ -7,11 +7,11 @@ import { options_i } from 'interfaces/common';
 import config from '../config';
 
 // UTILS
-import UTILS_SERVICES from '../utils/services';
+import { settings_validator_init } from '../utils/services';
 
 class service_settings_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: settings_validator_init;
 
   private readonly cities: object[];
   private readonly districts: object[];
@@ -19,7 +19,7 @@ class service_settings_init {
 
   constructor(options: options_i) {
     this.options = options;
-    this.validator = new UTILS_SERVICES.settings_validator_init(options);
+    this.validator = new settings_validator_init(options);
 
     this.cities = [
       { name: 'adana', id: 1 },
@@ -1859,7 +1859,7 @@ class service_settings_init {
   }
 
   async get_settings(credentials: any): Promise<object | null> {
-    const settings: string = await this.options.redis.get('settings');
+    const settings: string = await this.options.redis.GET('settings');
     const result: object = JSON.parse(settings);
     return result;
   }

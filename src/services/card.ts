@@ -23,7 +23,7 @@ import { card_create_doc, card_validator_init } from '../utils/services';
 
 class service_order_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: card_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -74,7 +74,7 @@ class service_order_init {
 
     const result: UpdateResult = await this.options.db.cards.updateOne(
       { user_id: credentials.user._id },
-      { $set: $set }
+      { $set: $set },
     );
 
     return result;

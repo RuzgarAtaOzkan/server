@@ -61,15 +61,6 @@ if [ "$START" = true ] && [ "$RESTART" = true ]; then
   exit 1
 fi
 
-echo "
-███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ 
-██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
-███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
-╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
-███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
-╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝
-"
-
 rm -rf build
 rm -rf node_modules
 rm -f package-lock.json
@@ -81,6 +72,15 @@ npm install
 npm audit fix
 npm run build
 
+echo "
+███████╗███████╗██████╗ ██╗   ██╗███████╗██████╗ 
+██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝██╔══██╗
+███████╗█████╗  ██████╔╝██║   ██║█████╗  ██████╔╝
+╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝  ██╔══██╗
+███████║███████╗██║  ██║ ╚████╔╝ ███████╗██║  ██║
+╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝╚═╝  ╚═╝
+"
+
 if [ "$START" = true ]; then
   ACTION="start";
 elif [ "$RESTART" = true ]; then
@@ -90,11 +90,11 @@ fi
 if [ -n "$ACTION" ]; then
   systemctl "$ACTION" "${NAME}.service"
 
-  journalctl -u "${NAME}.service" --since "30 seconds ago" -f &
+  journalctl -u "${NAME}.service" --since "10 seconds ago" -f &
 
   PID=$!
 
-  sleep 30
+  sleep 60
 
   kill "$PID"
   wait "$PID" 2>/dev/null

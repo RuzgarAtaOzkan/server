@@ -158,7 +158,7 @@ const config: config_i = {
     {
       id: 'solana',
 
-      coin_address: 'So11111111111111111111111111111111111111112',
+      coin_address: 'So11111111111111111111111111111111111111111',
       coin_address_wrapped: 'So11111111111111111111111111111111111111112',
       coin_name: 'Solana',
       coin_symbol: 'SOL',

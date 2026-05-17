@@ -14,7 +14,7 @@ import config from '../../config';
 function bind_review_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [

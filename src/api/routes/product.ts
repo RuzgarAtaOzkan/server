@@ -4,6 +4,7 @@
 import { DeleteResult, Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
+import { options_i } from 'interfaces/loaders';
 
 // MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';
@@ -14,13 +15,10 @@ import config from '../../config';
 function bind_product_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: options_i,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: '/v1' + config.endpoint_products,
@@ -28,9 +26,8 @@ function bind_product_routes(
         const credentials: any = { ...request.query };
 
         try {
-          const products: Document[] = await services.product.get_products(
-            credentials
-          );
+          const products: Document[] =
+            await services.product.get_products(credentials);
 
           reply.send(products);
         } catch (err: any) {
@@ -45,9 +42,8 @@ function bind_product_routes(
         const credentials: any = { _id: request.params._id };
 
         try {
-          const product: Document | null = await services.product.get_product(
-            credentials
-          );
+          const product: Document | null =
+            await services.product.get_product(credentials);
 
           reply.send(product);
         } catch (err: any) {

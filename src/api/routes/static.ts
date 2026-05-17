@@ -17,7 +17,7 @@ import { sleep } from '../../utils/common';
 function bind_static_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [

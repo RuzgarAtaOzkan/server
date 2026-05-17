@@ -5,7 +5,7 @@ import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
 import { options_i } from 'interfaces/common';
 
-// API > MIDDLEWARE
+// API/MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
@@ -14,13 +14,9 @@ import config from '../../config';
 function bind_user_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: SIGNUP
-    // #state: Public
-    // #desc: Signs the user to the database if their credentials is valid and give them a session id.
     {
       method: 'POST',
       url: '/v1' + config.endpoint_user_signup,
@@ -51,9 +47,6 @@ function bind_user_routes(
         }
       },
     },
-    // #title: SIGNIN
-    // #state: Public
-    // #desc: Sign users in and give them a session id.
     {
       method: 'POST',
       url: '/v1' + config.endpoint_user_signin,
@@ -82,9 +75,21 @@ function bind_user_routes(
         }
       },
     },
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
+    {
+      method: 'GET',
+      url: '/v1' + config.endpoint_user_email_verify,
+      handler: async function (request: any, reply: any) {
+        const credentials: any = { code: request.params.code };
+
+        try {
+          const user = await services.user.verify_email(credentials);
+
+          reply.send(user);
+        } catch (error) {
+          reply.status(422).send(error);
+        }
+      },
+    },
     {
       method: 'GET',
       url: '/v1' + config.endpoint_user_profile,
@@ -95,15 +100,7 @@ function bind_user_routes(
         };
 
         try {
-          const result: any | null = await services.user.get_profile(
-            credentials
-          );
-
-          if (result === null) {
-            return reply.send(null);
-          }
-
-          // result.cookie_value is not changed, result.cookie_expires renewed
+          const result = await services.user.get_profile(credentials);
 
           reply
             .setCookie(config.ENV_COOKIE_NAME, result.cookie_value, {
@@ -121,9 +118,6 @@ function bind_user_routes(
         }
       },
     },
-    // #title: EDIT PROFILE
-    // #state: Private
-    // #desc: Allow signed in user to edit its profile credentials.
     {
       method: 'PATCH',
       url: '/v1' + config.endpoint_user_profile,
@@ -142,33 +136,29 @@ function bind_user_routes(
         }
       },
     },
-    // #title: SIGNOUT
-    // #state: Private
-    // #desc: Sign users out and remove their session id.
     {
-      method: 'GET',
-      url: '/v1' + config.endpoint_user_signout,
+      method: 'POST',
+      url: '/v1' + config.endpoint_user_email_change,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
-        const credentials: any = {
-          sid: request.cookies[config.ENV_COOKIE_NAME],
-          user: request.user,
-        };
+        const credentials: any = { ...request.body, user: request.user };
 
         try {
-          const result: boolean = await services.user.signout(credentials);
+          const result = await services.user.change_email(credentials);
 
-          reply.clearCookie(config.ENV_COOKIE_NAME, { path: '/' }).send(result);
+          await services.mail.send_verification_link({
+            email: result.profile.email,
+            code: result.email_verification_code,
+          });
+
+          reply.send(result.profile);
         } catch (err: any) {
           reply.status(422).send(err);
         }
       },
     },
-    // #title: RESET PASSWORD
-    // #state: Public
-    // #desc: resets users password by sending code to the user with the specified email.
     {
       method: 'POST',
       url: '/v1' + config.endpoint_user_password_reset,
@@ -187,9 +177,6 @@ function bind_user_routes(
         }
       },
     },
-    // #title: CHANGE PASSWORD
-    // #state: Private
-    // #desc: Changes users password with authentication
     {
       method: 'POST',
       url: '/v1' + config.endpoint_user_password_change,
@@ -212,45 +199,22 @@ function bind_user_routes(
         }
       },
     },
-    // #title: VERIFY EMAIL
-    // #state: Private
-    // #desc: Verifies user's email by sending code to the specified email
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_user_email_verify,
-      handler: async function (request: any, reply: any) {
-        const credentials: any = { code: request.params.code };
-
-        try {
-          const user = await services.user.verify_email(credentials);
-
-          reply.send(user);
-        } catch (error) {
-          reply.status(422).send(error);
-        }
-      },
-    },
-    // #title: RESET EMAIL
-    // #state: Private
-    // #desc: Sends a link to the users new email, after click the link in the new email it resets and make that email the new one .
-    {
-      method: 'POST',
-      url: '/v1' + config.endpoint_user_email_change,
+      url: '/v1' + config.endpoint_user_signout,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
-        const credentials: any = { ...request.body, user: request.user };
+        const credentials: any = {
+          sid: request.cookies[config.ENV_COOKIE_NAME],
+          user: request.user,
+        };
 
         try {
-          const result = await services.user.change_email(credentials);
+          const result: number = await services.user.signout(credentials);
 
-          await services.mail.send_verification_link({
-            email: result.profile.email,
-            code: result.email_verification_code,
-          });
-
-          reply.send(result.profile);
+          reply.clearCookie(config.ENV_COOKIE_NAME, { path: '/' }).send(result);
         } catch (err: any) {
           reply.status(422).send(err);
         }

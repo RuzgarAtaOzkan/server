@@ -17,7 +17,7 @@ import { random } from '../utils/common';
 
 class service_review_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: review_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -38,7 +38,7 @@ class service_review_init {
   }
 
   async edit(credentials: any): Promise<any> {
-    await this.validator.edit(credentials, this.options);
+    await this.validator.edit(credentials);
 
     const $or: any[] = [];
     const $set: any = { updated_at: new Date() };

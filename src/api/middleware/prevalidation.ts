@@ -4,20 +4,19 @@
 import { Document, ObjectId } from 'mongodb';
 
 // INTERFACES
-import { options_i } from 'interfaces/common';
 import { FastifyReply } from 'fastify/types/reply';
 import { FastifyRequest } from 'fastify/types/request';
+import { options_i } from 'interfaces/common';
+import { redis_session_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../../config';
 
 export async function validate_user(
-  request: any,
+  request: FastifyRequest | any,
   reply: FastifyReply,
-  options: options_i
+  options: options_i,
 ): Promise<Document | null> {
-  request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
-
   const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
 
   if (sid === undefined) {
@@ -25,8 +24,8 @@ export async function validate_user(
     return null;
   }
 
-  const session: any | null = JSON.parse(
-    await options.redis.hGet('sessions', sid)
+  const session: redis_session_i | null = JSON.parse(
+    await options.redis.HGET('sessions', sid),
   );
 
   if (session === null) {
@@ -48,18 +47,16 @@ export async function validate_user(
     return null;
   }
 
-  request.user = user;
+  request.user = user; // bind the user to the request object
 
   return user;
 }
 
 export async function validate_admin(
-  request: any,
+  request: FastifyRequest | any,
   reply: FastifyReply,
-  options: options_i
+  options: options_i,
 ): Promise<Document | null> {
-  request.user = undefined; // user must be undefined to overwrite any previous setting on the hooks pipeline
-
   const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
 
   if (sid === undefined) {
@@ -67,8 +64,8 @@ export async function validate_admin(
     return null;
   }
 
-  const session: any | null = JSON.parse(
-    await options.redis.hGet('sessions', sid)
+  const session: redis_session_i | null = JSON.parse(
+    await options.redis.HGET('sessions', sid),
   );
 
   if (session === null) {
@@ -98,7 +95,7 @@ export async function validate_admin(
     return null;
   }
 
-  request.user = user;
+  request.user = user; // bind the user to the request object
 
   return user;
 }

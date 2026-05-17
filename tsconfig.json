@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
-    "lib": ["ES2023"],
+    "lib": ["ESNext"],
     "module": "commonjs",
     "pretty": true,
-    "target": "ES2023",
-    "types": ["node", "mongodb"],
+    "target": "esnext",
     "strict": true,
     "esModuleInterop": true,
     "rootDir": "./src",

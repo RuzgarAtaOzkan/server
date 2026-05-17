@@ -14,7 +14,7 @@ import config from '../../config';
 function bind_wallet_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: any,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [
@@ -28,9 +28,8 @@ function bind_wallet_routes(
         const credentials: any = { ...request.query };
 
         try {
-          const wallet: Document = await services.wallet.get_wallet(
-            credentials
-          );
+          const wallet: Document =
+            await services.wallet.get_wallet(credentials);
 
           reply.send(wallet);
         } catch (err: any) {
@@ -45,9 +44,8 @@ function bind_wallet_routes(
         const credentials: any = { ...request.body, ip: request.ip };
 
         try {
-          const wallet: Document | void = await services.wallet.create_wallet(
-            credentials
-          );
+          const wallet: Document | void =
+            await services.wallet.create_wallet(credentials);
 
           reply.send(wallet);
         } catch (err: any) {

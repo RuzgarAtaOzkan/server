@@ -15,13 +15,9 @@ import config from '../../config';
 function bind_coupon_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: '/v1' + config.endpoint_coupons,
@@ -29,9 +25,8 @@ function bind_coupon_routes(
         const credentials: any = { code: request.query.code };
 
         try {
-          const coupon: Document | null = await services.coupon.get_coupon(
-            credentials
-          );
+          const coupon: Document | null =
+            await services.coupon.get_coupon(credentials);
 
           reply.send(coupon);
         } catch (err: any) {

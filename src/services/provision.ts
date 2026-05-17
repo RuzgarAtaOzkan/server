@@ -13,7 +13,7 @@ import {
 
 class service_provision_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: provision_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -24,7 +24,7 @@ class service_provision_init {
     await this.validator.get_provision(credentials);
 
     const provision: Document | null = await this.options.db.provisions.findOne(
-      { _id: ObjectId.createFromHexString(credentials._id) }
+      { _id: ObjectId.createFromHexString(credentials._id) },
     );
 
     return provision;
@@ -41,9 +41,8 @@ class service_provision_init {
     // send total price to Garanti BBVA's sanal pos page generationo api
 
     const doc: Document = provision_create_doc(credentials);
-    const result: InsertOneResult = await this.options.db.provisions.insertOne(
-      doc
-    );
+    const result: InsertOneResult =
+      await this.options.db.provisions.insertOne(doc);
     doc._id = result.insertedId;
 
     // const url_garanti: string = 'https://sanalposprovtest.garantibbva.com.tr/servlet/gt3dengine';
@@ -64,7 +63,7 @@ class service_provision_init {
             _id: ObjectId.createFromHexString(provision.basket[i]._id),
             quantity: { $gte: provision.basket[i].quantity },
           },
-          { $inc: { quantity: -provision.basket[i].quantity } }
+          { $inc: { quantity: -provision.basket[i].quantity } },
         );
 
       if (product_update.modifiedCount === 0) {
@@ -73,7 +72,7 @@ class service_provision_init {
             {
               _id: ObjectId.createFromHexString(provision.basket[j]._id),
             },
-            { $inc: { quantity: provision.basket[j].quantity } }
+            { $inc: { quantity: provision.basket[j].quantity } },
           );
         }
 

@@ -16,7 +16,7 @@ import { user_create_doc } from '../utils/services';
 async function create_collection(
   model: any,
   client: MongoClient,
-  options: any
+  options: any,
 ): Promise<Collection | null> {
   const db: Db = client.db(config.ENV_DB_NAME);
 
@@ -27,20 +27,13 @@ async function create_collection(
   // If the parameter collectionName (name) is included in the database then that means
   // desired collection is already exists in the database
   // return null to check later in the createCollections before putting into Promise.all();
-  const existing_collection: CollectionInfo | undefined = collections.find(
-    (collection: any) => collection.name === model.name
-  );
 
-  if (existing_collection) {
-    options.db[model.name] = db.collection(model.name);
-    return null;
+  for (let i: number = 0; i < collections.length; i++) {
+    if (model.name === collections[i].name) {
+      options.db[model.name] = db.collection(model.name);
+      return null;
+    }
   }
-
-  /*
-  if (model.required.length) {
-    $jsonSchema.required = model.required;
-  }
-  */
 
   // where magic happens
   // creation of schemas and configurations in database. returns a collection
@@ -82,7 +75,7 @@ export async function load_mongodb(options: options_i): Promise<MongoClient> {
     const port: number = Number(config.ENV_DB_URL.split(':')[2]);
 
     console.info(
-      `[  \x1b[31mERR\x1b[0m  ] MongoDB ${group} (PORT: \x1b[38;2;255;165;0m${port}\x1b[0m)\n`
+      `[  \x1b[31mERR\x1b[0m  ] MongoDB ${group} (PORT: \x1b[38;2;255;165;0m${port}\x1b[0m)\n`,
     );
 
     console.info('            Debug: \x1b[1msystemctl status mongod\x1b[0m\n');
@@ -107,7 +100,7 @@ export async function load_mongodb(options: options_i): Promise<MongoClient> {
   for (let i: number = 0; i < admins.length; i++) {
     await options.db.users.updateOne(
       { _id: admins[i]._id, role: config.role_admin },
-      { $set: { role_key: config.ENV_ROLE_KEY_ADMIN } }
+      { $set: { role_key: config.ENV_ROLE_KEY_ADMIN } },
     );
   }
 
@@ -117,7 +110,7 @@ export async function load_mongodb(options: options_i): Promise<MongoClient> {
     {
       name: 'Admin',
       username: 'admin',
-      email: 'enescantepehan@gmail.com',
+      email: 'admin@server.com',
       password: '12345678',
     },
     options

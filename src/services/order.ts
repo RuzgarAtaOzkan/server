@@ -28,7 +28,7 @@ import { random } from '../utils/common';
 
 class service_order_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: order_validator_init;
 
   private queue: any[];
   private queue_on: boolean;
@@ -86,7 +86,7 @@ class service_order_init {
         products_promises.push(
           this.options.db.products.findOne({
             _id: ObjectId.createFromHexString(orders[i].basket[j]._id),
-          })
+          }),
         );
       }
 
@@ -109,7 +109,7 @@ class service_order_init {
         {
           $set: { status: 3, updated_at: new Date() },
           $unset: { delivery_code: 1 },
-        }
+        },
       );
 
     return order;

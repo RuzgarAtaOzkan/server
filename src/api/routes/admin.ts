@@ -15,7 +15,7 @@ import { Document } from 'mongodb';
 function bind_admin_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
   const routes: RouteOptions[] = [
     // MAIL
@@ -74,9 +74,8 @@ function bind_admin_routes(
         };
 
         try {
-          const product: any = await services.admin.products_create(
-            credentials
-          );
+          const product: any =
+            await services.admin.products_create(credentials);
 
           reply.send(product);
         } catch (err: any) {
@@ -116,9 +115,8 @@ function bind_admin_routes(
         const credentials: any = { _id: request.query._id, user: request.user };
 
         try {
-          const result: Document = await services.admin.products_delete(
-            credentials
-          );
+          const result: Document =
+            await services.admin.products_delete(credentials);
 
           reply.send(result);
         } catch (err: any) {
@@ -138,9 +136,8 @@ function bind_admin_routes(
         const credentials: any = { ...request.query };
 
         try {
-          const wallets: Document[] = await services.admin.wallets_get(
-            credentials
-          );
+          const wallets: Document[] =
+            await services.admin.wallets_get(credentials);
 
           reply.send(wallets);
         } catch (err: any) {
@@ -160,9 +157,8 @@ function bind_admin_routes(
         const credentials: any = { ip: request.ip };
 
         try {
-          const coupons: Document[] = await services.admin.coupons_get(
-            credentials
-          );
+          const coupons: Document[] =
+            await services.admin.coupons_get(credentials);
 
           reply.send(coupons);
         } catch (err: any) {
@@ -180,9 +176,8 @@ function bind_admin_routes(
         const credentials: any = { ...request.body, ip: request.ip };
 
         try {
-          const coupon: Document = await services.admin.coupons_create(
-            credentials
-          );
+          const coupon: Document =
+            await services.admin.coupons_create(credentials);
 
           reply.send(coupon);
         } catch (err: any) {

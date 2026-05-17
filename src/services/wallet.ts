@@ -24,7 +24,7 @@ import { random } from '../utils/common';
 
 class service_wallet_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: wallet_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -36,7 +36,7 @@ class service_wallet_init {
 
     this.options.db.wallets.updateOne(
       { _id: wallet._id },
-      { $set: { updated_at: new Date() } }
+      { $set: { updated_at: new Date() } },
     );
 
     // IMPORTANT: do not expose the private key to client
@@ -49,9 +49,8 @@ class service_wallet_init {
     await this.validator.create_wallet(credentials);
 
     const doc: Document = await wallet_create_doc(credentials, this.options);
-    const result: InsertOneResult = await this.options.db.wallets.insertOne(
-      doc
-    );
+    const result: InsertOneResult =
+      await this.options.db.wallets.insertOne(doc);
     doc._id = result.insertedId;
 
     const blockchain_id_solana: string = 'solana';
@@ -76,7 +75,7 @@ class service_wallet_init {
             doc.public,
             { encoding: 'jsonParsed', commitment: 'finalized' },
           ],
-        })
+        }),
       );
     }
 

@@ -9,7 +9,7 @@ import { product_validator_init } from '../utils/services';
 
 class service_product_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: product_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -43,7 +43,7 @@ class service_product_init {
     for (let i: number = 0; i < products.length; i++) {
       products[i].img = JSON.parse(products[i].img);
       reviews_promises.push(
-        this.options.db.reviews.find({ product_id: products[i]._id }).toArray()
+        this.options.db.reviews.find({ product_id: products[i]._id }).toArray(),
       );
     }
 

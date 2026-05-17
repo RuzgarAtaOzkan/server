@@ -18,7 +18,7 @@ import UTILS_COMMON from '../utils/common';
 
 class service_coupon_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: coupon_validator_init;
 
   constructor(options: options_i) {
     this.options = options;

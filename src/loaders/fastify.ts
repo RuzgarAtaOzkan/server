@@ -9,7 +9,7 @@ import fastify_rate_limit from '@fastify/rate-limit';
 import fastify_static from '@fastify/static';
 
 // INTERFACES
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // API
 import bind_routes from '../api';
@@ -21,7 +21,7 @@ import config from '../config';
 import { random } from '../utils/common';
 
 export async function load_fastify(
-  options: options_i
+  options: options_i,
 ): Promise<FastifyInstance> {
   // FASTIFY SERVER INSTANCE CONFIGURATIONS
 

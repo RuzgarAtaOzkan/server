@@ -21,7 +21,7 @@ import {
 class service_mail_init {
   private readonly options: options_i;
   private readonly transporter: Transporter;
-  private readonly validator: any;
+  private readonly validator: mail_validator_init;
 
   constructor(options: any) {
     this.options = options;
@@ -47,10 +47,8 @@ class service_mail_init {
   }
 
   async send_verification_link(credentials: any): Promise<void> {
-    const user: Document = await this.validator.send_verification_link(
-      credentials,
-      this.options
-    );
+    const user: Document =
+      await this.validator.send_verification_link(credentials);
 
     const endpoint: string =
       config.endpoint_user_email_verify.split(':')[0] + credentials.code;
@@ -73,13 +71,12 @@ class service_mail_init {
 
   // generates an email verification code, update users email verification code in the database, sends the verification link to users email
   async resend_verification_link(credentials: any): Promise<void> {
-    const user: Document = await this.validator.resend_verification_link(
-      credentials
-    );
+    const user: Document =
+      await this.validator.resend_verification_link(credentials);
 
     const code: string = await user_generate_email_verification_code(
       config.time_one_hour_ms,
-      this.options
+      this.options,
     );
 
     const endpoint: string =
@@ -92,7 +89,7 @@ class service_mail_init {
           email_verification_code: code,
           updated_at: new Date(),
         },
-      }
+      },
     );
 
     const link: string = config.ENV_URL_UI + endpoint;
@@ -113,13 +110,12 @@ class service_mail_init {
 
   // generates a password reset code, updated users password reset code in the database, sends the reset link to users email
   async send_password_reset_link(credentials: any): Promise<void> {
-    const user: Document = await this.validator.send_password_reset_link(
-      credentials
-    );
+    const user: Document =
+      await this.validator.send_password_reset_link(credentials);
 
     const code: string = await user_generate_password_reset_code(
       config.time_one_hour_ms,
-      this.options
+      this.options,
     );
 
     const endpoint: string = config.endpoint_user_password_reset + '/' + code;
@@ -131,7 +127,7 @@ class service_mail_init {
           password_reset_code: code,
           updated_at: new Date(),
         },
-      }
+      },
     );
 
     const link: string = config.ENV_URL_UI + endpoint;

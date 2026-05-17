@@ -4,7 +4,7 @@
 import { FastifyInstance } from 'fastify';
 import { MongoClient } from 'mongodb';
 import { RedisClientType } from 'redis';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';
@@ -23,9 +23,6 @@ export async function init(): Promise<void> {
     redis: null,
     sockets: [], // blockchain client sockets
   };
-
-  // ORDER OF LOADER COMPONENTS ARE IMPORTANT
-  // LOADING COMPONENTS order has to be => 1. logger and redis functions 2. mongodb configurations 3. cron jobs initializations and fastify route binds
 
   const redis: RedisClientType = await load_redis(options);
   console.info(
@@ -55,7 +52,7 @@ export async function init(): Promise<void> {
     `[  \x1b[32mOK\x1b[0m  ] \x1b[1mFastify server configured and initialized (PORT: \x1b[38;2;255;165;0m${config.ENV_PORT}\x1b[0m)`,
   );
 
-  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart server, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
+  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart server.service, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
 
   process.on('SIGTERM', async function () {
     // wait for the users to finish their requests (db writes, other async)

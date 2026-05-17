@@ -14,13 +14,9 @@ import config from '../../config';
 function bind_card_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: any,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: '/v1' + config.endpoint_cards,
@@ -31,9 +27,8 @@ function bind_card_routes(
         const credentials: any = { user: request.user };
 
         try {
-          const card: Document | null = await services.card.get_card(
-            credentials
-          );
+          const card: Document | null =
+            await services.card.get_card(credentials);
 
           reply.send(card);
         } catch (err: any) {

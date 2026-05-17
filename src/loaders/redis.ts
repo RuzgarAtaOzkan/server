@@ -5,6 +5,7 @@ import { createClient, RedisClientType } from 'redis';
 
 // INTERFACES
 import { options_i } from 'interfaces/common';
+import { redis_settings_i, redis_session_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';
@@ -14,7 +15,7 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
 
   client.on('error', (err: any) => {
     console.info(
-      `[  \x1b[31mERR\x1b[0m  ] Redis ${err.code} (PORT: \x1b[38;2;255;165;0m${err.port}\x1b[0m)\n`
+      `[  \x1b[31mERR\x1b[0m  ] Redis ${err.code} (PORT: \x1b[38;2;255;165;0m${err.port}\x1b[0m)\n`,
     );
     console.info('            DEBUG: \x1b[1msystemctl status redis\x1b[0m\n');
 
@@ -28,8 +29,8 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
   await client.connect();
 
   // clean up
-  await client.flushDb();
-  await client.flushAll();
+  await client.FLUSHDB();
+  await client.FLUSHALL();
 
   const blockchains = [];
   for (let i: number = 0; i < config.blockchains.length; i++) {
@@ -44,8 +45,8 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
   }
 
   // TODO: configure the initial settings values
-  const settings = {
-    exchange: { USD: 1, AED: 3.6725, EUR: 0.8934, TRY: 42.7136 }, // doviz burosu
+  const settings: redis_settings_i = {
+    exchange: { USD: 1, AED: 0, EUR: 0, TRY: 0 }, // doviz burosu
     blockchains: blockchains,
   };
 
@@ -56,7 +57,7 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
     }
   }
 
-  await client.set('settings', JSON.stringify(settings));
+  await client.SET('settings', JSON.stringify(settings));
 
   // dependency injection
   options.redis = client;

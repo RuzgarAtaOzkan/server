@@ -27,7 +27,7 @@ import { random } from '../utils/common';
 
 class service_admin_init {
   private readonly options: options_i;
-  private readonly validator: any;
+  private readonly validator: admin_validator_init;
 
   constructor(options: options_i) {
     this.options = options;
@@ -40,10 +40,10 @@ class service_admin_init {
     await this.validator.settings_edit(credentials);
 
     const settings: any | null = JSON.parse(
-      await this.options.redis.get('settings')
+      await this.options.redis.GET('settings'),
     );
 
-    await this.options.redis.set('settings', JSON.stringify(settings));
+    await this.options.redis.SET('settings', JSON.stringify(settings));
 
     return settings;
   }
@@ -73,9 +73,8 @@ class service_admin_init {
     credentials.img = img;
 
     const doc: Document = product_create_doc(credentials);
-    const result: InsertOneResult = await this.options.db.products.insertOne(
-      doc
-    );
+    const result: InsertOneResult =
+      await this.options.db.products.insertOne(doc);
 
     doc._id = result.insertedId;
 
@@ -153,7 +152,7 @@ class service_admin_init {
 
     const result: UpdateResult = await this.options.db.products.updateOne(
       { _id: ObjectId.createFromHexString(credentials._id) },
-      { $set: $set }
+      { $set: $set },
     );
 
     return result;

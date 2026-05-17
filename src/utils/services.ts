@@ -10,6 +10,7 @@ import validator from 'validator';
 import { Document, ObjectId } from 'mongodb';
 import { options_i } from 'interfaces/common';
 import { blockchain_i } from 'interfaces/config';
+import { redis_session_i } from 'interfaces/loaders';
 import { wallet_i } from 'interfaces/services';
 
 // CONFIG
@@ -23,9 +24,12 @@ import {
   base58_decode,
   fixd,
 } from './common';
-import * as ed25519 from './crypto/ed25519'; // solana curve math
-import * as secp256k1 from './crypto/secp256k1'; // ethereum & bitcoin curve math
-import * as sha3 from './crypto/sha3';
+
+// UTILS/CRYPTO
+/* (solana, ethereum & bitcoin curve math and hash functions for generating public keys and cryptographic signatures) */
+import * as ed25519 from './crypto/ed25519'; /*! noble-ed25519 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
+import * as secp256k1 from './crypto/secp256k1'; /*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
+import * as sha3 from './crypto/sha3'; /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 
 ///////////////////////
 // COMMON UTILS
@@ -196,13 +200,13 @@ export class common_validator_init {
         throw 'ERR_MISSING_PRODUCT';
       }
 
-      let duplicate: number = 0;
+      let dup: number = 0;
       for (let j: number = 0; j < basket.length; j++) {
-        if (basket[j]._id === basket[i]._id) {
-          duplicate++;
+        if (basket[j]._id.toLowerCase() === basket[i]._id.toLowerCase()) {
+          dup++;
         }
       }
-      if (duplicate > 1) {
+      if (dup > 1) {
         throw 'ERR_DUPLICATE_PRODUCT';
       }
 
@@ -647,15 +651,10 @@ export class user_validator_init {
 }
 
 export async function user_create_session(
-  payload: any,
+  payload: redis_session_i,
   options: options_i,
 ): Promise<string> {
-  const session: string = JSON.stringify({
-    user_id: payload.user_id,
-    ip: payload.ip,
-    remember: payload.remember,
-    created_at: new Date(),
-  });
+  const session: string = JSON.stringify(payload);
 
   // 32 bytes strong random hexadecimal string
   let sid: string = random();
@@ -1564,7 +1563,7 @@ export class provision_validator_init {
     }
   }
 
-  async create_order(credentials: any): Promise<Document | null> {
+  async create_order(credentials: any): Promise<Document> {
     // https://apisales.garantibbva.com.tr
 
     if (credentials.url !== 'https://api.garantibbva.com') {
@@ -1631,7 +1630,7 @@ export class provision_validator_init {
       price = price + provision.basket[i].price;
     }
 
-    const settings = JSON.parse(await this.options.redis.get('settings'));
+    const settings = JSON.parse(await this.options.redis.GET('settings'));
 
     // const price_exchange_margin: number = 0.97; // incase exchange increase during transaction
     const price_exchange: number =
@@ -1762,7 +1761,7 @@ export class wallet_validator_init {
     common_validator_init.address(credentials);
     await common_validator_init.basket(credentials.basket, this.options);
 
-    const settings = JSON.parse(await this.options.redis.get('settings'));
+    const settings = JSON.parse(await this.options.redis.GET('settings'));
 
     for (let i: number = 0; i < settings.blockchains.length; i++) {
       if (credentials.blockchain === settings.blockchains[i].id) {
@@ -1794,10 +1793,13 @@ export class wallet_validator_init {
   }
 }
 
-// ed25519 elliptic curve implementation for private and public key of a solana wallet
-export async function wallet_generate_solana(): Promise<wallet_i> {
+// ed25519 elliptic curve implementation for generating public key for a solana wallet
+export function wallet_generate_solana(): wallet_i {
   const seed: Uint8Array = crypto.randomBytes(32);
-  const key: Uint8Array = await ed25519.getPublicKeyAsync(seed);
+  const key: Uint8Array =
+    ed25519.getPublicKey(
+      seed,
+    ); /*! noble-ed25519 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
 
   const private_base58: string = base58_encode(seed);
   const public_base58: string = base58_encode(key);
@@ -1810,13 +1812,23 @@ export async function wallet_generate_solana(): Promise<wallet_i> {
   return wallet;
 }
 
-export async function wallet_generate_ethereum(): Promise<wallet_i> {
+// secp256k1 curve implementation for generating public for an ethereum wallet
+export function wallet_generate_ethereum(): wallet_i {
   const seed: Uint8Array = crypto.randomBytes(32);
-  const key: Uint8Array = secp256k1.getPublicKey(seed, false);
+  const key: Uint8Array = secp256k1.getPublicKey(
+    seed,
+    false,
+  ); /*! noble-secp256k1 - MIT License (c) 2019 Paul Miller (paulmillr.com) */
 
-  const address: Uint8Array = sha3.keccak_256(key.slice(1)).slice(-20);
+  const address: Uint8Array = sha3
+    .keccak_256(key.slice(1))
+    .slice(
+      -20,
+    ); /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
 
   /*
+   * with checksum
+
   function toChecksumAddress(address: string): string {
     const addr = address.toLowerCase().replace(/^0x/, '');
     const hash = sha3.keccak_256(Uint8Array.from(Buffer.from(addr, 'ascii')));
@@ -1845,7 +1857,7 @@ export async function wallet_generate_ethereum(): Promise<wallet_i> {
   return wallet;
 }
 
-export async function wallet_generate_bitcoin(): Promise<wallet_i> {
+export function wallet_generate_bitcoin(): wallet_i {
   const seed: Uint8Array = crypto.randomBytes(32);
   const key: Uint8Array = secp256k1.getPublicKey(seed, false);
 
@@ -1895,7 +1907,7 @@ export async function wallet_create_doc(
   credentials: any,
   options: options_i,
 ): Promise<Document> {
-  const settings = JSON.parse(await options.redis.get('settings'));
+  const settings = JSON.parse(await options.redis.GET('settings'));
 
   let wallet: wallet_i = { private: '', public: '' };
   let price: number = 0; // total price of the basket
@@ -1904,7 +1916,7 @@ export async function wallet_create_doc(
   // generate current blockchain's wallet
   for (let i: number = 0; i < config.blockchains.length; i++) {
     if (config.blockchains[i].id === credentials.blockchain) {
-      wallet = await config.blockchains[i].wallet_generate();
+      wallet = config.blockchains[i].wallet_generate();
       break;
     }
   }

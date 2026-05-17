@@ -4,6 +4,7 @@
 import { DeleteResult, Document, UpdateResult } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
+import { options_i } from 'interfaces/loaders';
 
 // API > MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';
@@ -14,7 +15,7 @@ import config from '../../config';
 function bind_provision_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: options_i,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [
@@ -47,9 +48,8 @@ function bind_provision_routes(
         };
 
         try {
-          const provision: Document = await services.provision.create_provision(
-            credentials
-          );
+          const provision: Document =
+            await services.provision.create_provision(credentials);
 
           reply.send(provision);
         } catch (err: any) {
@@ -69,9 +69,8 @@ function bind_provision_routes(
         };
 
         try {
-          const result: Document | null = await services.provision.create_order(
-            credentials
-          );
+          const result: Document | null =
+            await services.provision.create_order(credentials);
 
           reply.send(result);
         } catch (err: any) {

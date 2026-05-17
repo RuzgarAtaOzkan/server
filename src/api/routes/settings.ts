@@ -10,6 +10,7 @@ import prevalidation from '../middleware/prevalidation';
 import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../../config';
@@ -17,7 +18,7 @@ import config from '../../config';
 function bind_settings_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any
+  options: options_i,
 ): FastifyInstance {
   // @ Route Options Area
   const routes = [
