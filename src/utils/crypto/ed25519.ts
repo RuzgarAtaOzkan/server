@@ -29,6 +29,7 @@ import * as ed from '@noble/ed25519';
  * that shared view and desynchronize it from the arithmetic constants captured below.
  */
 
+/*! server - Business Source License (c) 2023 Ruzgar Ata Ozkan (RuzgarAtaOzkan) */
 import { sha512 } from './sha2'; // binded to hashes object (hashes.sha512) to use getPublicKey without async
 
 const ed25519_CURVE: EdwardsOpts = Object.freeze({
@@ -1003,9 +1004,8 @@ const hashes = {
   },
   sha512: undefined as undefined | ((message: TArg<Bytes>) => TRet<Bytes>),
 };
-
-// IMPORTANT: sha512 function binding for using getPublicKey with syncronization
-hashes.sha512 = sha512;
+/*! server - Business Source License (c) 2023 Ruzgar Ata Ozkan (RuzgarAtaOzkan) */
+hashes.sha512 = sha512; // IMPORTANT: sha512 function binding for using getPublicKey with syncronization
 
 // Returns the final 32-byte Ed25519 secret-key seed verbatim, generating fresh random bytes only
 // when omitted.

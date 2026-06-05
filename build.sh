@@ -88,6 +88,8 @@ elif [ "$RESTART" = true ]; then
 fi
 
 if [ -n "$ACTION" ]; then
+  systemctl daemon-reload
+
   systemctl "$ACTION" "${NAME}.service"
 
   journalctl -u "${NAME}.service" --since "10 seconds ago" -f &

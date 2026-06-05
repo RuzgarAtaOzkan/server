@@ -4,7 +4,6 @@
 import fs from 'node:fs';
 import { execSync } from 'node:child_process';
 import { CronJob } from 'cron';
-import axios from 'axios';
 
 // INTERFACES
 import { options_i } from 'interfaces/common';
@@ -122,6 +121,7 @@ async function mongodb_backup(
   });
 }
 
+// exchange API is expensive, use occasionally
 async function redis_update_exchange(options: options_i): Promise<void> {
   const settings = JSON.parse(await options.redis.GET('settings'));
 
@@ -129,9 +129,21 @@ async function redis_update_exchange(options: options_i): Promise<void> {
     'https://v6.exchangerate-api.com/v6/' +
     config.ENV_API_KEY_EXCHANGE +
     '/latest/USD';
-  const res = await axios.get(url);
 
-  settings.exchange = res.data.conversion_rates;
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: { Accept: 'application/json' },
+  });
+
+  if (res.ok === false) {
+    const err: string = await res.text(); // close the TCP connection by consuming the body buffer
+    console.warn(err);
+    return;
+  }
+
+  const data: any = await res.json();
+
+  settings.exchange = data.conversion_rates;
 
   await options.redis.SET('settings', JSON.stringify(settings));
 }
@@ -142,13 +154,22 @@ async function redis_update_blockchain_prices(
   const settings = JSON.parse(await options.redis.GET('settings'));
 
   for (let i: number = 0; i < config.blockchains.length; i++) {
-    const res = await axios.get(config.blockchains[i].url_binance_price);
+    const res = await fetch(config.blockchains[i].url_binance_price, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+    });
 
-    const price: number = Number(res.data.price);
+    if (res.ok === false) {
+      const err: string = await res.text();
+      console.warn(err);
+      return;
+    }
 
-    settings.blockchains[i].price = price;
+    const data: any = await res.json();
 
-    // await sleep(500);
+    settings.blockchains[i].price = Number(data.price);
+
+    await sleep(1000);
   }
 
   await options.redis.SET('settings', JSON.stringify(settings));
@@ -226,11 +247,7 @@ export async function load_cron(options: options_i) {
   cron.jobs[0] = new CronJob('*/9 * * * * *', async function () {
     cron.jobs[0].finished = false;
 
-    await Promise.all([
-      redis_update_blockchain_prices(options),
-      wallet_scan(options),
-      socket_ping(options),
-    ]);
+    await Promise.all([wallet_scan(options), socket_ping(options)]);
 
     cron.jobs[0].finished = true;
 
@@ -247,7 +264,7 @@ export async function load_cron(options: options_i) {
   cron.jobs[1] = new CronJob('59 * * * * *', async function () {
     cron.jobs[1].finished = false;
 
-    await Promise.all([]);
+    await Promise.all([redis_update_blockchain_prices(options)]);
 
     cron.jobs[1].finished = true;
 

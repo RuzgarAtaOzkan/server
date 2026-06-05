@@ -2,7 +2,6 @@
 
 // MODULES
 import fs from 'node:fs';
-import axios from 'axios';
 import crypto from 'node:crypto';
 
 // INTERFACES

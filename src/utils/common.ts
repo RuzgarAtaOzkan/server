@@ -64,6 +64,45 @@ export function str_remove_space(source: string): string {
   return result;
 }
 
+// check if a string contains a duplicate block of piece and count it
+// args: "banana", "ana", true ==> return value: 1
+export function strhasdup(
+  source: string,
+  block: string,
+  cc: boolean = false, // continue counting
+): number {
+  if (cc) {
+    let result: number = 0;
+
+    for (let i: number = 0; i < source.length; i++) {
+      const index: number = source.indexOf(block, i);
+
+      if (index === -1) {
+        continue;
+      }
+
+      result++;
+      i = index - 1 + block.length; // jump to that index to avoid duplicate count
+    }
+
+    return result;
+  }
+
+  const findex: number = source.indexOf(block);
+
+  if (findex === -1) {
+    return 0;
+  }
+
+  const sindex: number = source.indexOf(block, findex + 1);
+
+  if (sindex === -1) {
+    return 0;
+  }
+
+  return 1;
+}
+
 export function random(length: number = 32, type: string = 'hex'): string {
   switch (type) {
     case 'hex':
@@ -117,6 +156,7 @@ export function add_commas(value: number): string {
   return result;
 }
 
+// this function has a very bad engineering
 export function fhandle(f: number, length: number = 2): string {
   const f_str: string = f.toString();
 
@@ -283,6 +323,7 @@ export default {
   sleep,
   freeze,
   str_remove_space,
+  strhasdup,
   random,
   add_commas,
   fhandle,

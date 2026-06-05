@@ -4,7 +4,6 @@
 import { DeleteResult, Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
-import { options_i } from 'interfaces/loaders';
 
 // MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';
@@ -15,9 +14,8 @@ import config from '../../config';
 function bind_product_routes(
   server: FastifyInstance,
   services: services_i,
-  options: options_i,
+  options: any,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
     {
       method: 'GET',

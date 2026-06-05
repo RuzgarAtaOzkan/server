@@ -1,9 +1,11 @@
 'use strict';
 
 // MODULES
-import { Document, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
+import validator from 'validator';
 
 // INTERFACES
+import { Document } from 'mongodb';
 import { FastifyReply } from 'fastify/types/reply';
 import { FastifyRequest } from 'fastify/types/request';
 import { options_i } from 'interfaces/common';
@@ -18,14 +20,30 @@ export async function validate_user(
   options: options_i,
 ): Promise<Document | null> {
   const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
+  const user_agent: string = request.headers['user-agent'];
 
   if (sid === undefined) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (typeof sid !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (sid.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (validator.isAlphanumeric(sid) === false) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
   const session: redis_session_i | null = JSON.parse(
-    await options.redis.HGET('sessions', sid),
+    await options.redis.GET('session:' + sid),
   );
 
   if (session === null) {
@@ -34,6 +52,23 @@ export async function validate_user(
   }
 
   if (session.ip !== request.ip) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (typeof user_agent !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (user_agent.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (
+    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
+  ) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
@@ -58,14 +93,30 @@ export async function validate_admin(
   options: options_i,
 ): Promise<Document | null> {
   const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
+  const user_agent: string = request.headers['user-agent'];
 
   if (sid === undefined) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (typeof sid !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (sid.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (validator.isAlphanumeric(sid) === false) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
   const session: redis_session_i | null = JSON.parse(
-    await options.redis.HGET('sessions', sid),
+    await options.redis.GET('session:' + sid),
   );
 
   if (session === null) {
@@ -74,6 +125,23 @@ export async function validate_admin(
   }
 
   if (session.ip !== request.ip) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (typeof user_agent !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (user_agent.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  if (
+    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
+  ) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }

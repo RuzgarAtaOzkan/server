@@ -5,9 +5,24 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 
 // INTERFACES
-import { Document, InsertOneResult, ObjectId } from 'mongodb';
+import { Document, InsertOneResult, UpdateResult, ObjectId } from 'mongodb';
 import { options_i } from 'interfaces/common';
 import { redis_session_i } from 'interfaces/loaders';
+import {
+  user_email_change_credentials_i,
+  user_email_change_result_i,
+  user_get_profile_credentials_i,
+  user_get_profile_result_i,
+  user_password_change_credentials_i,
+  user_password_reset_credentials_i,
+  user_patch_profile_credentials_i,
+  user_signin_credentials_i,
+  user_signin_result_i,
+  user_signout_credentials_i,
+  user_signup_credentials_i,
+  user_signup_result_i,
+} from 'interfaces/services';
+import { user_profile_i } from 'interfaces/utils';
 
 // CONFIG
 import config from '../config';
@@ -32,12 +47,18 @@ class service_user_init {
     this.validator = new user_validator_init(options);
   }
 
-  async signup(credentials: any): Promise<any> {
+  async signup(
+    credentials: user_signup_credentials_i,
+  ): Promise<user_signup_result_i> {
     await this.validator.signup(credentials);
 
     const doc: Document = await user_create_doc(credentials, this.options);
 
     const insert: InsertOneResult = await this.options.db.users.insertOne(doc);
+
+    doc._id = insert.insertedId;
+
+    const profile: user_profile_i = user_return_profile(doc);
 
     const session: redis_session_i = {
       user_id: insert.insertedId.toString(),
@@ -48,16 +69,12 @@ class service_user_init {
 
     const sid: string = await user_create_session(session, this.options);
 
-    doc._id = insert.insertedId;
-
-    const profile = user_return_profile(doc);
-
     let expires: undefined | Date = undefined;
     if (credentials.remember) {
       expires = new Date(Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30);
     }
 
-    const result: any = {
+    const result: user_signup_result_i = {
       profile: profile,
       email_verification_code: doc.email_verification_code,
       cookie_value: sid, // cookie value
@@ -67,8 +84,12 @@ class service_user_init {
     return result;
   }
 
-  async signin(credentials: any): Promise<any> {
+  async signin(
+    credentials: user_signin_credentials_i,
+  ): Promise<user_signin_result_i> {
     const user: Document = await this.validator.signin(credentials);
+
+    const profile: user_profile_i = user_return_profile(user);
 
     const session: redis_session_i = {
       user_id: user._id.toString(),
@@ -78,8 +99,6 @@ class service_user_init {
     };
 
     const sid: string = await user_create_session(session, this.options);
-
-    const profile = user_return_profile(user);
 
     let expires: undefined | Date = undefined;
     if (credentials.remember) {
@@ -95,7 +114,7 @@ class service_user_init {
     return result;
   }
 
-  async verify_email(code: string): Promise<any> {
+  async verify_email(code: string): Promise<user_profile_i> {
     const user: Document = await this.validator.verify_email(code);
 
     const email_verification_code: string =
@@ -113,14 +132,18 @@ class service_user_init {
     );
 
     user.email_verified = true;
+    user.email_verification_code = email_verification_code;
+    user.updated_at = new Date();
 
-    const profile = user_return_profile(user);
+    const profile: user_profile_i = user_return_profile(user);
 
     return profile;
   }
 
   // renewes the cookie lifetime if any exists
-  async get_profile(credentials: any): Promise<any> {
+  async get_profile(
+    credentials: user_get_profile_credentials_i,
+  ): Promise<user_get_profile_result_i> {
     if (credentials.sid === undefined) {
       return {
         profile: null,
@@ -129,8 +152,10 @@ class service_user_init {
       };
     }
 
+    await this.validator.get_profile(credentials);
+
     const session: redis_session_i | null = JSON.parse(
-      await this.options.redis.HGET('sessions', credentials.sid),
+      await this.options.redis.GET('session:' + credentials.sid),
     );
 
     if (session === null) {
@@ -161,37 +186,50 @@ class service_user_init {
       };
     }
 
-    // redis expiration in seconds
-    let redis_exp: number = config.ENV_COOKIE_LIFETIME_MS / 1000;
-    let cookie_expires: undefined | Date = undefined;
+    const profile: user_profile_i = user_return_profile(user);
 
+    // session time to live in seconds (number)
+    const session_ttl: number = await this.options.redis.ttl(
+      'session:' + credentials.sid,
+    );
+
+    let cookie_expires: undefined | Date = undefined;
     if (session.remember) {
-      redis_exp = redis_exp * 30;
-      cookie_expires = new Date(
-        Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30,
-      );
+      cookie_expires = new Date(Date.now() + session_ttl * 1000);
     }
 
-    // renew session expiry on redis hash
-    await this.options.redis.expire(credentials.sid, redis_exp);
+    // renew session expiry only if a certain threshold has passed (12 hours)
+    if (session_ttl < (config.time_one_hour_ms / 1000) * 12) {
+      // redis expiration in seconds
+      let redis_exp: number = config.ENV_COOKIE_LIFETIME_MS / 1000;
 
-    const profile = user_return_profile(user);
+      if (session.remember) {
+        redis_exp = redis_exp * 30;
+        cookie_expires = new Date(
+          Date.now() + config.ENV_COOKIE_LIFETIME_MS * 30,
+        );
+      }
 
-    return {
+      await this.options.redis.EXPIRE('session:' + credentials.sid, redis_exp);
+    }
+
+    const result: user_get_profile_result_i = {
       profile: profile,
       cookie_value: credentials.sid,
       cookie_expires: cookie_expires,
     };
+
+    return result;
   }
 
-  async edit_profile(credentials: any): Promise<any> {
+  async edit_profile(
+    credentials: user_patch_profile_credentials_i,
+  ): Promise<UpdateResult> {
     await this.validator.edit_profile(credentials);
 
     const query: any = { _id: credentials.user._id };
 
-    const $set: any = {
-      updated_at: new Date(),
-    };
+    const $set: any = { updated_at: new Date() };
 
     if (credentials.img) {
       const base64_buffer: string[] = credentials.img.split(';base64,');
@@ -199,20 +237,25 @@ class service_user_init {
       const base64_data: string = base64_buffer[1];
 
       const file_ext: string = base64_type.split('/')[1];
-      const file_name: string = random() + '.' + file_ext;
 
-      // File system integration
+      let file_name: string = random() + '.' + file_ext;
+      let file_exists: boolean = fs.existsSync('public/images/' + file_name);
+
+      while (file_exists) {
+        file_name = random() + '.' + file_ext;
+        file_exists = fs.existsSync('public/images/' + file_name);
+      }
+
+      // write new base64 buffer to file synchronously
+      fs.writeFileSync('public/images/' + file_name, base64_data, {
+        encoding: 'base64',
+      });
 
       // Delete previous image of the user
       const previous_img_parts: string[] = credentials.user.img.split('/');
       const previous_img_id: string =
         previous_img_parts[previous_img_parts.length - 1];
       fs.unlink('public/images/' + previous_img_id, function (err: any) {});
-
-      // Write new base64 buffer to file asynchronously
-      fs.writeFileSync('public/images/' + file_name, base64_data, {
-        encoding: 'base64',
-      });
 
       const img: string = config.ENV_URL_API + '/images/' + file_name;
 
@@ -257,12 +300,16 @@ class service_user_init {
     }
 
     // update user credentials
-    await this.options.db.users.updateOne(query, { $set: $set });
+    const result: UpdateResult = await this.options.db.users.updateOne(query, {
+      $set: $set,
+    });
 
-    return $set;
+    return result;
   }
 
-  async change_email(credentials: any): Promise<any> {
+  async change_email(
+    credentials: user_email_change_credentials_i,
+  ): Promise<user_email_change_result_i> {
     await this.validator.change_email(credentials);
 
     const code: string = await user_generate_email_verification_code(
@@ -284,10 +331,11 @@ class service_user_init {
 
     credentials.user.email = credentials.email;
     credentials.user.email_verified = false;
+    credentials.user.updated_at = new Date();
 
-    const profile: any = user_return_profile(credentials.user);
+    const profile: user_profile_i = user_return_profile(credentials.user);
 
-    const result: any = {
+    const result: user_email_change_result_i = {
       profile: profile,
       email_verification_code: code,
     };
@@ -295,7 +343,9 @@ class service_user_init {
     return result;
   }
 
-  async reset_password(credentials: any): Promise<any> {
+  async reset_password(
+    credentials: user_password_reset_credentials_i,
+  ): Promise<user_profile_i> {
     const user: Document = await this.validator.reset_password(credentials);
 
     // put an expired password reset code after user successfully reset his password
@@ -318,22 +368,14 @@ class service_user_init {
       },
     );
 
-    // delete user sessions
-    /*
-    const sessions = await this.options.redis.HGETALL('sessions');
-    for (const key in sessions) {
-      if (JSON.parse(sessions[key]).user_id === user._id.toString()) {
-        this.options.redis.HDEL('sessions', key);
-      }
-    }
-    */
-
-    const profile = user_return_profile(user);
+    const profile: user_profile_i = user_return_profile(user);
 
     return profile;
   }
 
-  async change_password(credentials: any): Promise<any> {
+  async change_password(
+    credentials: user_password_change_credentials_i,
+  ): Promise<user_profile_i> {
     await this.validator.change_password(credentials);
 
     await this.options.db.users.updateOne(
@@ -349,12 +391,12 @@ class service_user_init {
       },
     );
 
-    const profile = user_return_profile(credentials.user);
+    const profile: user_profile_i = user_return_profile(credentials.user);
 
     return profile;
   }
 
-  async signout(credentials: any): Promise<number> {
+  async signout(credentials: user_signout_credentials_i): Promise<number> {
     // await this.validator.signout(credentials);
 
     const result: number = await this.options.redis.HDEL(

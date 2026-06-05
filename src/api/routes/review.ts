@@ -16,7 +16,6 @@ function bind_review_routes(
   services: services_i,
   options: options_i,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
     {
       method: 'POST',

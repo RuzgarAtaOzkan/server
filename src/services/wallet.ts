@@ -1,26 +1,11 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-import axios from 'axios';
-
 // INTERFACES
-import {
-  DeleteResult,
-  Document,
-  InsertOneResult,
-  ObjectId,
-  UpdateResult,
-} from 'mongodb';
+import { Document, InsertOneResult } from 'mongodb';
 import { options_i } from 'interfaces/common';
-
-// CONFIG
-import config from '../config';
 
 // UTILS
 import { wallet_validator_init, wallet_create_doc } from '../utils/services';
-import { random } from '../utils/common';
 
 class service_wallet_init {
   private readonly options: options_i;

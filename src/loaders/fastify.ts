@@ -1,7 +1,7 @@
 'use strict';
 
 // MODULES
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify from 'fastify';
 import fastify_helmet from '@fastify/helmet';
 import fastify_cookie from '@fastify/cookie';
 import fastify_cors from '@fastify/cors';
@@ -9,7 +9,8 @@ import fastify_rate_limit from '@fastify/rate-limit';
 import fastify_static from '@fastify/static';
 
 // INTERFACES
-import { options_i } from 'interfaces/loaders';
+import { FastifyInstance } from 'fastify';
+import { options_i } from 'interfaces/common';
 
 // API
 import bind_routes from '../api';

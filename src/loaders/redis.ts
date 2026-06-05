@@ -11,6 +11,16 @@ import { redis_settings_i, redis_session_i } from 'interfaces/loaders';
 import config from '../config';
 
 export async function load_redis(options: options_i): Promise<RedisClientType> {
+  /**
+   * Redis rules:
+   * - no HSET only top level hashes with SET
+   *
+   * All Redis hashes:
+   * - "settings"
+   * - "session:{sid}"
+   * - "sessions:{user_id}"
+   */
+
   const client: RedisClientType = createClient();
 
   client.on('error', (err: any) => {
@@ -46,7 +56,7 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
 
   // TODO: configure the initial settings values
   const settings: redis_settings_i = {
-    exchange: { USD: 1, AED: 0, EUR: 0, TRY: 0 }, // doviz burosu
+    exchange: { USD: 1, AED: 3.6725, EUR: 0.8934, TRY: 46 }, // doviz burosu
     blockchains: blockchains,
   };
 
@@ -58,6 +68,25 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
   }
 
   await client.SET('settings', JSON.stringify(settings));
+
+  /**
+   * @Sample user session
+   * 
+* const session: redis_session_i = {
+    user_id: '123',
+    ip: '123',
+    remember: false,
+    created_at: new Date(),
+  };
+
+   * 
+  await client.SET('session:{sid}', JSON.stringify(session), {
+    NX: true,
+    EX: config.time_one_hour_ms,
+  });
+   * 
+   * 
+   */
 
   // dependency injection
   options.redis = client;

@@ -1,6 +1,6 @@
 # Fastify API Server
 
-A **scalable**, **secure**, **production-grade e-commerce API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
+A **scalable**, **secure**, **production-grade API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
 
 The project focuses on **simplicity**, **reliability**, and **long-term maintainability**.
 It intentionally avoids modern JavaScript over-engineering and unnecessary abstractions.
@@ -40,11 +40,11 @@ The goal is **boring**, **readable**, **auditable code** that behaves predictabl
 
 ⚠️ **Linux only**
 
-This project is designed and tested exclusively on Linux systems.
+This project is designed and tested exclusively on Linux systems (preferably Debian).
 
 ### Node.js
 
-- **Node.js v18 or later is required**
+- **Node.js v20.6.0 or later is required**
 
 Check installation:
 
@@ -85,6 +85,7 @@ Requires=mongod.service redis-server.service
 
 [Service]
 WorkingDirectory=/path/to/project-name
+EnvironmentFile=/path/to/project-name/.env
 ExecStart=/usr/bin/node build/index.js
 
 [Install]
@@ -95,15 +96,15 @@ WantedBy=multi-user.target
 
 You must obtain API keys for the following services:
 
-- **Garanti BBVA**
+- **hCaptcha**
 - **ExchangeRate-API**
+- **Garanti BBVA**
 - **Helius** (Solana RPC API)
 - **Infura** (Ethereum RPC API)
-- **hCaptcha**
 
 ### Environment Variables
 
-Replace `name` with your actual project name and fill all values correctly.
+Replace `server` with your actual project name and fill all values correctly.
 
 ```env
 # Fastify
@@ -112,11 +113,11 @@ PORT=3001
 PORT_SOCKET=3002
 
 # Session cookie (for authenticating the user)
-COOKIE_NAME=name_sid
+COOKIE_NAME=server_sid
 
 # MongoDB
 DB_URL=mongodb://127.0.0.1:27017
-DB_NAME=name
+DB_NAME=server
 
 # User roles
 ROLE_KEY_ADMIN=strong_random_value
@@ -124,17 +125,23 @@ ROLE_KEY_USER=strong_random_value
 
 # Email (SMTP)
 EMAIL_HOST=smtp.gmail.com
-EMAIL_USERNAME=info@name.com
+EMAIL_USERNAME=info@server.com
 EMAIL_PASSWORD=123
 
 # URL of the API (this app)
-URL_API=https://api.name.com
+URL_API=https://api.server.com
 # URL of the frontend, where the requests will come to this API from
-URL_UI=https://name.com
+URL_UI=https://server.com
 # URL of the frontend localhost for testing
 URL_UI_LOCAL=http://127.0.0.1:3000
 
 # Required API keys
+
+# https://www.hcaptcha.com/
+# API_KEY_CAPTCHA=...
+
+# https://app.exchangerate-api.com
+API_KEY_EXCHANGE=...
 
 # https://dev.garantibbva.com.tr/sanalpos-satis-pesin-3dli
 API_KEY_GARANTI=...
@@ -146,17 +153,11 @@ API_KEY_GARANTI_USER=...
 API_KEY_GARANTI_PASSWORD=...
 API_KEY_GARANTI_STORE=...
 
-# https://app.exchangerate-api.com
-API_KEY_EXCHANGE=...
-
 # https://www.helius.dev/
 API_KEY_HELIUS=...
 
 # https://www.infura.io/
 API_KEY_INFURA=...
-
-# https://www.hcaptcha.com/
-# API_KEY_CAPTCHA=...
 ```
 
 ### Build Script

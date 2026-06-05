@@ -1,8 +1,5 @@
 'use strict';
 
-//  MODULES
-import dotenv from 'dotenv';
-
 // INTERFACES
 import config_i from 'interfaces/config';
 
@@ -29,14 +26,6 @@ import {
   wallet_generate_ethereum,
   wallet_generate_bitcoin,
 } from '../utils/services';
-
-// bind .env file to the process.env;
-const env = dotenv.config({ quiet: true });
-
-if (env.error) {
-  // this error should crash whole process
-  throw 'CONFIG: ENV FILE ERROR';
-}
 
 // COMMON CONFIGURATION VALUES OF THE SYSTEM
 const config: config_i = {

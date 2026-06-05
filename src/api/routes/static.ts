@@ -19,11 +19,7 @@ function bind_static_routes(
   services: services_i,
   options: options_i,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: config.endpoint_static_root,

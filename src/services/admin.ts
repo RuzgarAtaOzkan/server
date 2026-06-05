@@ -58,7 +58,14 @@ class service_admin_init {
       const base64_data: string = base64_buffer[1];
 
       const file_ext: string = base64_type.split('/')[1];
-      const file_name: string = random() + '.' + file_ext;
+
+      let file_name: string = random() + '.' + file_ext;
+      let file_exists: boolean = fs.existsSync('public/images/' + file_name);
+
+      while (file_exists) {
+        file_name = random() + '.' + file_ext;
+        file_exists = fs.existsSync('public/images/' + file_name);
+      }
 
       // write new base64 buffer to file synchronously
       fs.writeFileSync('public/images/' + file_name, base64_data, {
@@ -84,18 +91,24 @@ class service_admin_init {
   async products_edit(credentials: any): Promise<any> {
     const product: Document = await this.validator.products_edit(credentials);
 
-    const $set: any = {
-      updated_at: new Date(),
-    };
+    const $set: any = { updated_at: new Date() };
 
-    // adding a new img url to the img array
+    // adding a new img url to the img array. currently the user can only add the new image to the end of the array,
+    // TODO: write a logic for desired image index
     if (typeof credentials.img === config.type_string) {
       const base64_buffer: string[] = credentials.img.split(';base64,');
       const base64_type: string = base64_buffer[0];
       const base64_data: string = base64_buffer[1];
 
       const file_ext: string = base64_type.split('/')[1];
-      const file_name: string = random() + '.' + file_ext;
+
+      let file_name: string = random() + '.' + file_ext;
+      let file_exists: boolean = fs.existsSync('public/images/' + file_name);
+
+      while (file_exists) {
+        file_name = random() + '.' + file_ext;
+        file_exists = fs.existsSync('public/images/' + file_name);
+      }
 
       // write new base64 buffer to file synchronously
       fs.writeFileSync('public/images/' + file_name, base64_data, {
@@ -155,7 +168,7 @@ class service_admin_init {
       { $set: $set },
     );
 
-    return result;
+    return $set;
   }
 
   async products_delete(credentials: any): Promise<any> {

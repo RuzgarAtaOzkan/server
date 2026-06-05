@@ -16,7 +16,7 @@ import load_socket from './socket';
 import load_cron from './cron';
 import load_fastify from './fastify';
 
-export async function init(): Promise<void> {
+export async function init(args: string = ''): Promise<void> {
   // global pointer* object of the system for dependency injections, you will carry that object throughout the whole program
   const options: options_i = {
     db: null,
@@ -37,11 +37,10 @@ export async function init(): Promise<void> {
 
   await load_socket(options);
   console.info(
-    `[  \x1b[32mOK\x1b[0m  ] \x1b[1mWeb socket clients initialized and configured\x1b[0m`,
+    `[  \x1b[32mOK\x1b[0m  ] \x1b[1mWebSocket clients initialized and configured\x1b[0m`,
   );
 
   // then initialize cron jobs and bind routes to fastify with the given configured mongodb object; options.db or options.db
-  // TODO: clear cron jobs and wait for them to finish on SIGTERM & SIGINT, otherwise wallet status updates can cut in half which is a critical error
   const cron = await load_cron(options);
   console.info('[  \x1b[32mOK\x1b[0m  ] \x1b[1mCron jobs initialized\x1b[0m');
 

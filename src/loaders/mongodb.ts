@@ -88,8 +88,8 @@ export async function load_mongodb(options: options_i): Promise<MongoClient> {
   // dependency injection
   options.db = client.db(config.ENV_DB_NAME);
 
-  for (const model of Object.values(models)) {
-    await create_collection(model, client, options);
+  for (const model in models) {
+    await create_collection(models[model], client, options);
   }
 
   // update admins role key strings with the new environment ROLE_KEY_ADMIN

@@ -36,7 +36,7 @@ import bind_admin_routes from './routes/admin';
 // bind all server routes here
 function bind_routes(
   server: FastifyInstance,
-  options: options_i
+  options: options_i,
 ): FastifyInstance {
   // Initialize all services here once to pass them into route binders
   const services: services_i = {

@@ -10,6 +10,10 @@ import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
+import {
+  mail_resend_verification_link_credentials_i,
+  mail_send_password_reset_link_credentials_i,
+} from 'interfaces/services';
 
 function bind_mail_routes(
   server: FastifyInstance,
@@ -24,8 +28,9 @@ function bind_mail_routes(
         await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {
-        const credentials: any = {
+        const credentials: mail_resend_verification_link_credentials_i = {
           email: request.body.email,
+          captcha: request.body.captcha,
           user: request.user,
         };
 
@@ -42,8 +47,9 @@ function bind_mail_routes(
       method: 'POST',
       url: '/v1' + config.endpoint_mail_password_reset_link,
       handler: async function (request: any, reply: any) {
-        const credentials: any = {
+        const credentials: mail_send_password_reset_link_credentials_i = {
           email: request.body.email,
+          captcha: request.body.captcha,
         };
 
         try {

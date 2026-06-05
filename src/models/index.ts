@@ -10,7 +10,7 @@ import wallet from './wallet';
 import coupon from './coupon';
 import review from './review';
 
-const models = {
+const models: any = {
   user,
   card,
   product,

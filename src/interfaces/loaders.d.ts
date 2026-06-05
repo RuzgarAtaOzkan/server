@@ -1,17 +1,14 @@
-// CONFIG
-import config from '../config';
-
 // INTERFACES
-import { Db, MongoClient, ObjectId } from 'mongodb';
 import { WebSocket } from 'ws';
+import { MongoClient } from 'mongodb';
 import { RedisClientType } from 'redis';
 
 // TYPES
 import { blockchain_t } from 'types/config';
 
 export interface options_i {
-  db: any;
-  redis: any;
+  db: MongoClient | any;
+  redis: RedisClientType | any;
   sockets: WebSocket[]; // [new WebSocket(solana), new WebSocket(ethereum)]
 }
 
@@ -28,8 +25,10 @@ export interface redis_settings_i {
 }
 
 export interface redis_session_i {
-  user_id: string;
-  ip: string;
-  remember: boolean;
+  readonly user_id: string;
+  readonly ip: string;
+  readonly remember: boolean;
   created_at: Date;
 }
+
+export interface redis_sessions_i {}

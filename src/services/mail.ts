@@ -5,7 +5,12 @@ import nodemailer, { Transporter } from 'nodemailer';
 
 // INTERFACES
 import { Document } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
+import {
+  mail_resend_verification_link_credentials_i,
+  mail_send_password_reset_link_credentials_i,
+  mail_send_verification_link_credentials_i,
+} from 'interfaces/services';
 
 // CONFIG
 import config from '../config';
@@ -23,7 +28,7 @@ class service_mail_init {
   private readonly transporter: Transporter;
   private readonly validator: mail_validator_init;
 
-  constructor(options: any) {
+  constructor(options: options_i) {
     this.options = options;
     this.validator = new mail_validator_init(options);
 
@@ -39,16 +44,22 @@ class service_mail_init {
     });
 
     this.transporter.verify(function (err: any, success: any) {
-      if (err) {
-        // TODO: enable error throw on email signin fail
-        // throw err;
+      if (err && config.ENV_API_KEY_CAPTCHA) {
+        // TODO: crash the process if SMTP verification fails on production
+        throw err;
       }
     });
   }
 
-  async send_verification_link(credentials: any): Promise<void> {
-    const user: Document =
-      await this.validator.send_verification_link(credentials);
+  async send_verification_link(
+    credentials: mail_send_verification_link_credentials_i,
+  ): Promise<void> {
+    // signup already does all the validation for email and email_verification_code
+    // this.validator.send_verification_link(credentials)
+
+    const user: Document = await this.options.db.users.findOne({
+      email: credentials.email,
+    });
 
     const endpoint: string =
       config.endpoint_user_email_verify.split(':')[0] + credentials.code;
@@ -70,7 +81,9 @@ class service_mail_init {
   }
 
   // generates an email verification code, update users email verification code in the database, sends the verification link to users email
-  async resend_verification_link(credentials: any): Promise<void> {
+  async resend_verification_link(
+    credentials: mail_resend_verification_link_credentials_i,
+  ): Promise<void> {
     const user: Document =
       await this.validator.resend_verification_link(credentials);
 
@@ -109,7 +122,9 @@ class service_mail_init {
   }
 
   // generates a password reset code, updated users password reset code in the database, sends the reset link to users email
-  async send_password_reset_link(credentials: any): Promise<void> {
+  async send_password_reset_link(
+    credentials: mail_send_password_reset_link_credentials_i,
+  ): Promise<void> {
     const user: Document =
       await this.validator.send_password_reset_link(credentials);
 

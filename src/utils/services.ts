@@ -1,25 +1,34 @@
 'use strict';
 
 // MODULES
-import fs from 'node:fs';
 import crypto from 'node:crypto';
-import axios from 'axios';
 import validator from 'validator';
 
 // INTERFACES
 import { Document, ObjectId } from 'mongodb';
-import { options_i } from 'interfaces/common';
-import { blockchain_i } from 'interfaces/config';
+import { options_i } from 'interfaces/loaders';
 import { redis_session_i } from 'interfaces/loaders';
-import { wallet_i } from 'interfaces/services';
+import { user_profile_i, wallet_i } from 'interfaces/utils';
+import {
+  mail_resend_verification_link_credentials_i,
+  mail_send_password_reset_link_credentials_i,
+  user_email_change_credentials_i,
+  user_get_profile_credentials_i,
+  user_password_change_credentials_i,
+  user_password_reset_credentials_i,
+  user_patch_profile_credentials_i,
+  user_signin_credentials_i,
+  user_signup_credentials_i,
+} from 'interfaces/services';
 
 // CONFIG
 import config from '../config';
 
-// UTILS
+// UTILS/COMMON
 import {
   random,
   str_remove_space,
+  strhasdup,
   base58_encode,
   base58_decode,
   fixd,
@@ -35,24 +44,32 @@ import * as sha3 from './crypto/sha3'; /*! noble-hashes - MIT License (c) 2022 P
 // COMMON UTILS
 ///////////////////////
 export class common_validator_init {
-  static base64(base64: string): void {
-    // base64 = data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAApgAAAKYB3X3/OAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAANCSURBVEiJtZZPbBtFFMZ/
+  static validate_base64(source: string): void {
+    // source = data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAApgAAAKYB3X3/OAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAANCSURBVEiJtZZPbBtFFMZ/
 
-    if (typeof base64 !== config.type_string) {
+    if (typeof source !== config.type_string) {
       throw 'ERR_INVALID_BASE64';
+    }
+
+    if (source.length > Math.round(500000 * 1.33333)) {
+      throw 'ERR_LONG_BASE64';
     }
 
     // allowed image types
     if (
-      base64.startsWith('data:image/png;base64,') === false &&
-      base64.startsWith('data:image/jpg;base64,') === false &&
-      base64.startsWith('data:image/jpeg;base64,') === false &&
-      base64.startsWith('data:image/webp;base64,') === false
+      source.startsWith('data:image/png;base64,') === false &&
+      source.startsWith('data:image/jpg;base64,') === false &&
+      source.startsWith('data:image/jpeg;base64,') === false &&
+      source.startsWith('data:image/webp;base64,') === false
     ) {
       throw 'ERR_INVALID_BASE64';
     }
 
-    const base64_parts: string[] = base64.split(';base64,');
+    if (strhasdup(source, ';base64,')) {
+      throw 'ERR_INVALID_BASE64';
+    }
+
+    const base64_parts: string[] = source.split(';base64,');
 
     if (base64_parts.length !== 2) {
       throw 'ERR_INVALID_BASE64';
@@ -92,81 +109,125 @@ export class common_validator_init {
     }
   }
 
-  static address(credentials: any): void {
+  static validate_address(credentials: any): void {
     if (typeof credentials.city !== config.type_string) {
       throw 'ERR_INVALID_CITY';
     }
-    credentials.city = str_remove_space(
-      credentials.city
-        .normalize('NFKD') // decompose accents
-        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-        .replace(/Ğ/g, 'G')
-        .replace(/ğ/g, 'g')
-        .replace(/ı/g, 'i')
-        .toLowerCase(),
-    );
-    if (credentials.city.length > 32) {
-      throw 'ERR_LONG_CITY';
-    }
-    if (validator.isAlpha(credentials.city) === false) {
-      throw 'ERR_INVALID_CITY';
-    }
-
-    // ---
 
     if (typeof credentials.district !== config.type_string) {
       throw 'ERR_INVALID_DISTRICT';
     }
-    credentials.district = str_remove_space(
-      credentials.district
-        .normalize('NFKD') // decompose accents
-        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-        .replace(/Ğ/g, 'G')
-        .replace(/ğ/g, 'g')
-        .replace(/ı/g, 'i')
-        .toLowerCase(),
-    );
-    if (credentials.district.length > 32) {
-      throw 'ERR_LONG_DISTRICT';
-    }
-    if (validator.isAlpha(credentials.district) === false) {
-      throw 'ERR_INVALID_DISTRICT';
-    }
-
-    // ---
 
     if (typeof credentials.address !== config.type_string) {
       throw 'ERR_INVALID_ADDRESS';
     }
-    credentials.address = str_remove_space(
-      credentials.address
-        .normalize('NFKD') // decompose accents
-        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-        .replace(/Ğ/g, 'G')
-        .replace(/ğ/g, 'g')
-        .replace(/ı/g, 'i'),
-    );
-    if (credentials.address.length > 128) {
-      throw 'ERR_LONG_ADDRESS';
-    }
-    if (
-      new RegExp(/^[a-zA-Z0-9.,!:#()\-/ ]+$/).test(credentials.address) ===
-      false
-    ) {
-      throw 'ERR_INVALID_ADDRESS';
-    }
-
-    // ---
 
     if (typeof credentials.zip !== config.type_number) {
       throw 'ERR_INVALID_ZIP';
     }
+
+    // ---
+
+    if (credentials.city.length > 32) {
+      throw 'ERR_LONG_CITY';
+    }
+
+    if (credentials.district.length > 32) {
+      throw 'ERR_LONG_DISTRICT';
+    }
+
+    if (credentials.address.length > 128) {
+      throw 'ERR_LONG_ADDRESS';
+    }
+
     if (Math.abs(credentials.zip) > 100000) {
       throw 'ERR_INVALID_ZIP';
     }
+
+    // ---
+
+    credentials.city = credentials.city
+      .normalize('NFKD') // decompose accents
+      .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+      .toLowerCase();
+    credentials.city = str_remove_space(credentials.city);
+
+    credentials.district = credentials.district
+      .normalize('NFKD') // decompose accents
+      .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+      .toLowerCase();
+    credentials.district = str_remove_space(credentials.district);
+
+    credentials.address = credentials.address
+      .normalize('NFKD') // decompose accents
+      .replace(/[\u0300-\u036f]/g, ''); // remove diacritics
+    credentials.address = str_remove_space(credentials.address);
+
+    // ---
+
+    if (validator.isAlpha(credentials.city) === false) {
+      throw 'ERR_INVALID_CITY';
+    }
+
+    if (validator.isAlpha(credentials.district) === false) {
+      throw 'ERR_INVALID_DISTRICT';
+    }
+
+    if (/^[a-zA-Z0-9.,!:#()\/\- ]+$/.test(credentials.address) === false) {
+      throw 'ERR_INVALID_ADDRESS';
+    }
   }
 
-  static async basket(basket: any[], options: options_i): Promise<void> {
+  static validate_card(credentials: any): void {
+    if (typeof credentials.card_number !== config.type_string) {
+      throw 'ERR_INVALID_CARD_NUMBER';
+    }
+
+    credentials.card_number = str_remove_space(credentials.card_number);
+
+    if (credentials.card_number.length !== 16) {
+      throw 'ERR_INVALID_CARD_NUMBER';
+    }
+
+    for (let i: number = 0; i < credentials.card_number.length; i++) {
+      if (isNaN(Number(credentials.card_number[i]))) {
+        throw 'ERR_INVALID_CARD_NUMBER';
+      }
+    }
+
+    if (typeof credentials.card_month !== config.type_number) {
+      throw 'ERR_INVALID_CARD_MONTH';
+    }
+
+    if (credentials.card_month < 1 || credentials.card_month > 12) {
+      throw 'ERR_INVALID_CARD_MONTH';
+    }
+
+    if (typeof credentials.card_year !== config.type_number) {
+      throw 'ERR_INVALID_CARD_YEAR';
+    }
+
+    if (credentials.card_year < new Date().getUTCFullYear()) {
+      throw 'ERR_INVALID_CARD_YEAR';
+    }
+
+    if (typeof credentials.card_cvc !== config.type_number) {
+      throw 'ERR_INVALID_CARD_CVC';
+    }
+
+    if (credentials.card_cvc < 1 || credentials.card_cvc % 1 !== 0) {
+      throw 'ERR_INVALID_CARD_CVC';
+    }
+  }
+
+  static async validate_basket(
+    basket: any[],
+    options: options_i,
+  ): Promise<void> {
+    if (typeof basket !== config.type_object) {
+      throw 'ERR_INVALID_BASKET';
+    }
+
     if (Array.isArray(basket) === false) {
       throw 'ERR_INVALID_BASKET';
     }
@@ -225,7 +286,13 @@ export class common_validator_init {
 ///////////////////////
 export class user_validator_init {
   private readonly options: options_i;
-  private readonly password_config: any;
+  private readonly password_config: {
+    minLength: number;
+    minSymbols: number;
+    minNumbers: number;
+    minLowercase: number;
+    minUppercase: number;
+  };
 
   constructor(options: options_i) {
     this.options = options;
@@ -240,7 +307,7 @@ export class user_validator_init {
     };
   }
 
-  async signup(credentials: any): Promise<void> {
+  async signup(credentials: user_signup_credentials_i): Promise<void> {
     if (typeof credentials.name !== config.type_string) {
       throw 'ERR_INVALID_NAME';
     }
@@ -257,11 +324,7 @@ export class user_validator_init {
       throw 'ERR_INVALID_PASSWORD';
     }
 
-    if (credentials.ref_code) {
-      if (typeof credentials.ref_code !== config.type_string) {
-        throw 'ERR_INVALID_REF';
-      }
-
+    if (typeof credentials.ref_code === config.type_string) {
       credentials.ref_code = str_remove_space(
         credentials.ref_code,
       ).toLowerCase();
@@ -269,31 +332,41 @@ export class user_validator_init {
       if (credentials.ref_code.length > 16) {
         throw 'ERR_LONG_REF';
       }
+
+      if (validator.isAlphanumeric(credentials.ref_code) === false) {
+        throw 'ERR_INVALID_REF';
+      }
     }
 
     if (typeof credentials.remember !== config.type_boolean) {
       throw 'ERR_INVALID_REMEMBER';
     }
 
-    credentials.name = str_remove_space(credentials.name);
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
-    credentials.username = str_remove_space(credentials.username).toLowerCase();
+    // ---
 
     if (credentials.name.length > 32) {
       throw 'ERR_LONG_NAME';
-    }
-
-    if (credentials.email.length > 32) {
-      throw 'ERR_LONG_EMAIL';
     }
 
     if (credentials.username.length > 32) {
       throw 'ERR_LONG_USERNAME';
     }
 
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
+    }
+
     if (credentials.password.length > 32) {
       throw 'ERR_LONG_PASSWORD';
     }
+
+    // ---
+
+    credentials.name = str_remove_space(credentials.name);
+    credentials.username = str_remove_space(credentials.username).toLowerCase();
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    // ---
 
     if (
       new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
@@ -301,12 +374,16 @@ export class user_validator_init {
       throw 'ERR_INVALID_NAME';
     }
 
+    if (validator.isAlphanumeric(credentials.username) === false) {
+      throw 'ERR_INVALID_USERNAME';
+    }
+
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    if (validator.isAlphanumeric(credentials.username) === false) {
-      throw 'ERR_INVALID_USERNAME';
+    if (validator.isAscii(credentials.password) === false) {
+      throw 'ERR_INVALID_PASSWORD';
     }
 
     if (
@@ -316,6 +393,8 @@ export class user_validator_init {
       throw 'ERR_WEAK_PASSWORD';
     }
 
+    // ---
+
     const user: Document | null = await this.options.db.users.findOne({
       $or: [{ email: credentials.email }, { username: credentials.username }],
     });
@@ -324,26 +403,45 @@ export class user_validator_init {
       throw 'ERR_EXISTING_USER';
     }
 
-    if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+    // ---
 
-      const res_captcha: any = await axios.post(
+    if (config.ENV_API_KEY_CAPTCHA) {
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
+
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
   }
 
-  async signin(credentials: any): Promise<Document> {
+  async signin(credentials: user_signin_credentials_i): Promise<Document> {
     if (typeof credentials.uid !== config.type_string) {
       throw 'ERR_INVALID_UID';
     }
@@ -356,7 +454,7 @@ export class user_validator_init {
       throw 'ERR_INVALID_REMEMBER';
     }
 
-    credentials.uid = str_remove_space(credentials.uid).toLowerCase();
+    // ---
 
     if (credentials.uid.length > 32) {
       throw 'ERR_LONG_UID';
@@ -366,6 +464,12 @@ export class user_validator_init {
       throw 'ERR_LONG_PASSWORD';
     }
 
+    // ---
+
+    credentials.uid = str_remove_space(credentials.uid).toLowerCase();
+
+    // ---
+
     const user: Document | null = await this.options.db.users.findOne({
       $or: [{ email: credentials.uid }, { username: credentials.uid }],
     });
@@ -373,6 +477,8 @@ export class user_validator_init {
     if (user === null) {
       throw 'ERR_MISSING_USER';
     }
+
+    // ---
 
     // TODO: use crypto.scryptSync instead of sha256
     if (
@@ -385,17 +491,35 @@ export class user_validator_init {
     return user;
   }
 
-  async edit_profile(credentials: any): Promise<void> {
+  async get_profile(
+    credentials: user_get_profile_credentials_i,
+  ): Promise<void> {
+    if (typeof credentials.sid !== config.type_string) {
+      throw 'ERR_INVALID_SID';
+    }
+
+    if (credentials.sid.length > 64) {
+      throw 'ERR_LONG_SID';
+    }
+
+    if (validator.isAlphanumeric(credentials.sid) === false) {
+      throw 'ERR_INVALID_SID';
+    }
+  }
+
+  async edit_profile(
+    credentials: user_patch_profile_credentials_i,
+  ): Promise<void> {
     if (credentials.name) {
       if (typeof credentials.name !== config.type_string) {
         throw 'ERR_INVALID_NAME';
       }
 
-      credentials.name = str_remove_space(credentials.name);
-
       if (credentials.name.length > 32) {
         throw 'ERR_LONG_NAME';
       }
+
+      credentials.name = str_remove_space(credentials.name);
 
       if (
         new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
@@ -404,18 +528,20 @@ export class user_validator_init {
       }
     }
 
+    // ---
+
     if (credentials.username) {
       if (typeof credentials.username !== config.type_string) {
         throw 'ERR_INVALID_USERNAME';
       }
 
-      credentials.username = str_remove_space(
-        credentials.username,
-      ).toLowerCase();
-
       if (credentials.username.length > 32) {
         throw 'ERR_LONG_USERNAME';
       }
+
+      credentials.username = str_remove_space(
+        credentials.username,
+      ).toLowerCase();
 
       if (validator.isAlphanumeric(credentials.username) === false) {
         throw 'ERR_INVALID_USERNAME';
@@ -440,90 +566,96 @@ export class user_validator_init {
       }
     }
 
+    // ---
+
     if (credentials.img) {
-      common_validator_init.base64(credentials.img);
+      common_validator_init.validate_base64(credentials.img);
     }
+
+    // ---
 
     if (credentials.phone) {
       if (typeof credentials.phone !== config.type_string) {
         throw 'ERR_INVALID_PHONE';
       }
 
-      credentials.phone = str_remove_space(credentials.phone);
-
       if (credentials.phone.length > 14) {
         throw 'ERR_LONG_PHONE';
       }
+
+      credentials.phone = str_remove_space(credentials.phone);
 
       if (validator.isMobilePhone(credentials.phone) === false) {
         throw 'ERR_INVALID_PHONE';
       }
     }
 
+    // ---
+
     if (credentials.city) {
       if (typeof credentials.city !== config.type_string) {
         throw 'ERR_INVALID_CITY';
       }
-      credentials.city = str_remove_space(
-        credentials.city
-          .normalize('NFKD') // decompose accents
-          .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-          .replace(/Ğ/g, 'G')
-          .replace(/ğ/g, 'g')
-          .replace(/ı/g, 'i')
-          .toLowerCase(),
-      );
+
       if (credentials.city.length > 32) {
         throw 'ERR_LONG_CITY';
       }
+
+      credentials.city = credentials.city
+        .normalize('NFKD') // decompose accents
+        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+        .toLowerCase();
+      credentials.city = str_remove_space(credentials.city);
+
       if (validator.isAlpha(credentials.city) === false) {
         throw 'ERR_INVALID_CITY';
       }
     }
 
+    // ---
+
     if (credentials.district) {
       if (typeof credentials.district !== config.type_string) {
         throw 'ERR_INVALID_DISTRICT';
       }
-      credentials.district = str_remove_space(
-        credentials.district
-          .normalize('NFKD') // decompose accents
-          .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-          .replace(/Ğ/g, 'G')
-          .replace(/ğ/g, 'g')
-          .replace(/ı/g, 'i')
-          .toLowerCase(),
-      );
+
       if (credentials.district.length > 32) {
         throw 'ERR_LONG_DISTRICT';
       }
+
+      credentials.district = credentials.district
+        .normalize('NFKD') // decompose accents
+        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+        .toLowerCase();
+      credentials.district = str_remove_space(credentials.district);
+
       if (validator.isAlpha(credentials.district) === false) {
         throw 'ERR_INVALID_DISTRICT';
       }
     }
 
+    // ---
+
     if (credentials.address) {
       if (typeof credentials.address !== config.type_string) {
         throw 'ERR_INVALID_ADDRESS';
       }
-      credentials.address = str_remove_space(
-        credentials.address
-          .normalize('NFKD') // decompose accents
-          .replace(/[\u0300-\u036f]/g, '') // remove diacritics
-          .replace(/Ğ/g, 'G')
-          .replace(/ğ/g, 'g')
-          .replace(/ı/g, 'i'),
-      );
+
       if (credentials.address.length > 128) {
         throw 'ERR_LONG_ADDRESS';
       }
-      if (
-        new RegExp(/^[a-zA-Z0-9.,!:#()\-/ ]+$/).test(credentials.address) ===
-        false
-      ) {
+
+      credentials.address = credentials.address
+        .normalize('NFKD') // decompose accents
+        .replace(/[\u0300-\u036f]/g, ''); // remove diacritics
+      credentials.address = str_remove_space(credentials.address);
+
+      if (/^[a-zA-Z0-9.,!:#()\-/ ]+$/.test(credentials.address) === false) {
         throw 'ERR_INVALID_ADDRESS';
       }
     }
+
+    // ---
 
     if (credentials.zip) {
       if (typeof credentials.zip !== config.type_number) {
@@ -535,23 +667,35 @@ export class user_validator_init {
     }
   }
 
-  async reset_password(credentials: any): Promise<Document> {
+  async reset_password(
+    credentials: user_password_reset_credentials_i,
+  ): Promise<Document> {
+    if (typeof credentials.code !== config.type_string) {
+      throw 'ERR_INVALID_CODE';
+    }
+
     if (typeof credentials.password !== config.type_string) {
       throw 'ERR_INVALID_PASSWORD';
     }
 
-    if (typeof credentials.code !== config.type_string) {
-      throw 'ERR_INVALID_CODE';
+    // ---
+
+    if (credentials.code.length > 128) {
+      throw 'ERR_LONG_CODE';
     }
 
     if (credentials.password.length > 32) {
       throw 'ERR_LONG_PASSWORD';
     }
 
-    credentials.code = str_remove_space(credentials.code);
+    // ---
 
-    if (credentials.code.length > 128) {
-      throw 'ERR_LONG_CODE';
+    // credentials.code = str_remove_space(credentials.code);
+
+    // ---
+
+    if (validator.isAlphanumeric(credentials.code) === false) {
+      throw 'ERR_INVALID_CODE';
     }
 
     if (
@@ -561,6 +705,8 @@ export class user_validator_init {
       throw 'ERR_WEAK_PASSWORD';
     }
 
+    // ---
+
     const user: Document | null = await this.options.db.users.findOne({
       password_reset_code: credentials.code,
     });
@@ -568,6 +714,8 @@ export class user_validator_init {
     if (user === null) {
       throw 'ERR_MISSING_USER';
     }
+
+    // ---
 
     const exp: number =
       parseInt(user.password_reset_code.substring(0, 8), 16) * 1000;
@@ -579,14 +727,20 @@ export class user_validator_init {
     return user;
   }
 
-  async change_password(credentials: any): Promise<void> {
+  async change_password(
+    credentials: user_password_change_credentials_i,
+  ): Promise<void> {
     if (typeof credentials.password !== config.type_string) {
       throw 'ERR_INVALID_PASSWORD';
     }
 
+    // ---
+
     if (credentials.password.length > 32) {
       throw 'ERR_LONG_PASSWORD';
     }
+
+    // ---
 
     if (
       validator.isStrongPassword(credentials.password, this.password_config) ===
@@ -596,20 +750,30 @@ export class user_validator_init {
     }
   }
 
-  async change_email(credentials: any): Promise<void> {
+  async change_email(
+    credentials: user_email_change_credentials_i,
+  ): Promise<void> {
     if (typeof credentials.email !== config.type_string) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
+    // ---
 
     if (credentials.email.length > 32) {
       throw 'ERR_LONG_EMAIL';
     }
 
+    // ---
+
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    // ---
+
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
     }
+
+    // ---
 
     const user: Document | null = await this.options.db.users.findOne({
       email: credentials.email,
@@ -620,24 +784,38 @@ export class user_validator_init {
     }
   }
 
-  async verify_email(credentials: any): Promise<Document> {
-    if (typeof credentials.code !== config.type_string) {
+  async verify_email(code: string): Promise<Document> {
+    if (typeof code !== config.type_string) {
       throw 'ERR_INVALID_CODE';
     }
 
-    credentials.code = str_remove_space(credentials.code);
+    // ---
 
-    if (credentials.code.length > 128) {
+    if (code.length > 128) {
       throw 'ERR_LONG_CODE';
     }
 
+    // ---
+
+    code = str_remove_space(code);
+
+    // ---
+
+    if (validator.isAlphanumeric(code) === false) {
+      throw 'ERR_INVALID_CODE';
+    }
+
+    // ---
+
     const user: Document | null = await this.options.db.users.findOne({
-      email_verification_code: credentials.code,
+      email_verification_code: code,
     });
 
     if (user === null) {
       throw 'ERR_MISSING_USER';
     }
+
+    // ---
 
     const exp: number =
       parseInt(user.email_verification_code.substring(0, 8), 16) * 1000;
@@ -654,24 +832,35 @@ export async function user_create_session(
   payload: redis_session_i,
   options: options_i,
 ): Promise<string> {
+  payload.created_at = new Date(); // overwrite the created_at
+
   const session: string = JSON.stringify(payload);
 
   // 32 bytes strong random hexadecimal string
   let sid: string = random();
-  let result: number = await options.redis.HSETNX('sessions', sid, session);
 
-  while (result === 0) {
-    sid = random();
-    result = await options.redis.HSETNX('sessions', sid, session);
-  }
-
-  // set expiration for the individual session (sid) in seconds
+  // set expiration for the individual session id (sid) in seconds
   let exp: number = config.ENV_COOKIE_LIFETIME_MS / 1000;
   if (payload.remember) {
     exp = exp * 30;
   }
 
-  await options.redis.expire(sid, exp);
+  let result: string | null = await options.redis.SET(
+    'session:' + sid,
+    session,
+    {
+      NX: true,
+      EX: exp,
+    },
+  );
+
+  while (result === null) {
+    sid = random();
+    result = await options.redis.SET('session:' + sid, session, {
+      NX: true,
+      EX: exp,
+    });
+  }
 
   return sid;
 }
@@ -737,7 +926,7 @@ export async function user_generate_ref_code(
 }
 
 export async function user_create_doc(
-  credentials: any,
+  credentials: user_signup_credentials_i,
   options: options_i,
 ): Promise<Document> {
   const res = await Promise.all([
@@ -754,7 +943,7 @@ export async function user_create_doc(
   const ref_code: string = res[2];
   const ref_from: ObjectId | null = res[3] ? res[3]._id : null;
 
-  const doc: any = {
+  const doc: Document = {
     name: str_remove_space(credentials.name),
     username: str_remove_space(credentials.username).toLowerCase(),
     username_changed_at: new Date(),
@@ -776,7 +965,7 @@ export async function user_create_doc(
     ref_from: ref_from,
 
     img: '',
-    phone: '', //str_remove_space(credentials.phone),
+    phone: '', // str_remove_space(credentials.phone),
 
     city: '', // istanbul
     district: '', // buyukcekmece
@@ -837,7 +1026,7 @@ export async function user_generate_api_key(
   return final;
 }
 
-export function user_return_profile(user: Document) {
+export function user_return_profile(user: Document): user_profile_i {
   return {
     _id: user._id,
 
@@ -874,51 +1063,24 @@ export class mail_validator_init {
     this.options = options;
   }
 
-  async send_verification_link(credentials: any): Promise<Document> {
+  async resend_verification_link(
+    credentials: mail_resend_verification_link_credentials_i,
+  ): Promise<Document> {
     if (typeof credentials.email !== config.type_string) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    if (typeof credentials.code !== config.type_string) {
-      throw 'ERR_INVALID_CODE';
-    }
-
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
-    credentials.code = str_remove_space(credentials.code);
+    // ---
 
     if (credentials.email.length > 32) {
       throw 'ERR_LONG_EMAIL';
     }
 
-    if (credentials.code.length > 128) {
-      throw 'ERR_LONG_CODE';
-    }
-
-    if (validator.isEmail(credentials.email) === false) {
-      throw 'ERR_INVALID_EMAIL';
-    }
-
-    const user: Document | null = await this.options.db.users.findOne({
-      email: credentials.email,
-    });
-
-    if (user === null) {
-      throw 'ERR_MISSING_USER';
-    }
-
-    return user;
-  }
-
-  async resend_verification_link(credentials: any): Promise<Document> {
-    if (typeof credentials.email !== config.type_string) {
-      throw 'ERR_INVALID_EMAIL';
-    }
+    // ---
 
     credentials.email = str_remove_space(credentials.email).toLowerCase();
 
-    if (credentials.email.length > 32) {
-      throw 'ERR_LONG_EMAIL';
-    }
+    // ---
 
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
@@ -936,20 +1098,39 @@ export class mail_validator_init {
       throw 'ERR_VERIFIED_EMAIL';
     }
 
-    if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+    // ---
 
-      const res_captcha: any = await axios.post(
+    if (config.ENV_API_KEY_CAPTCHA) {
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
+
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
@@ -957,16 +1138,24 @@ export class mail_validator_init {
     return user;
   }
 
-  async send_password_reset_link(credentials: any): Promise<Document> {
+  async send_password_reset_link(
+    credentials: mail_send_password_reset_link_credentials_i,
+  ): Promise<Document> {
     if (typeof credentials.email !== config.type_string) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
+    // ---
 
     if (credentials.email.length > 32) {
       throw 'ERR_LONG_EMAIL';
     }
+
+    // ---
+
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+
+    // ---
 
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
@@ -980,20 +1169,39 @@ export class mail_validator_init {
       throw 'ERR_MISSING_USER';
     }
 
-    if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+    // ---
 
-      const res_captcha: any = await axios.post(
+    if (config.ENV_API_KEY_CAPTCHA) {
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
+
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
@@ -1092,11 +1300,11 @@ export class card_validator_init {
       throw 'ERR_INVALID_NUMBER';
     }
 
-    credentials.number = credentials.number.replace(/ /g, '');
-
     if (credentials.number.length !== 16) {
       throw 'ERR_INVALID_NUMBER';
     }
+
+    credentials.number = credentials.number.replace(/ /g, '');
 
     for (let i: number = 0; i < credentials.number.length; i++) {
       if (isNaN(Number(credentials.number[i]))) {
@@ -1143,11 +1351,11 @@ export class card_validator_init {
         throw 'ERR_INVALID_NUMBER';
       }
 
-      credentials.number = credentials.number.replace(/ /g, '');
-
       if (credentials.number.length !== 16) {
         throw 'ERR_INVALID_NUMBER';
       }
+
+      credentials.number = credentials.number.replace(/ /g, '');
 
       for (let i: number = 0; i < credentials.number.length; i++) {
         if (isNaN(Number(credentials.number[i]))) {
@@ -1230,7 +1438,7 @@ export class product_validator_init {
 }
 
 export function product_create_doc(credentials: any): Document {
-  const doc: any = {
+  const doc: Document = {
     img: JSON.stringify(credentials.img),
     name: str_remove_space(credentials.name),
     description: str_remove_space(credentials.description),
@@ -1256,48 +1464,6 @@ export class order_validator_init {
     this.options = options;
   }
 
-  validate_card(credentials: any) {
-    if (typeof credentials.card_number !== config.type_string) {
-      throw 'ERR_INVALID_CARD_NUMBER';
-    }
-
-    credentials.card_number = credentials.card_number.replace(/ /g, '');
-
-    if (credentials.card_number.length !== 16) {
-      throw 'ERR_INVALID_CARD_NUMBER';
-    }
-
-    for (let i: number = 0; i < credentials.card_number.length; i++) {
-      if (isNaN(Number(credentials.card_number[i]))) {
-        throw 'ERR_INVALID_CARD_NUMBER';
-      }
-    }
-
-    if (typeof credentials.card_month !== config.type_number) {
-      throw 'ERR_INVALID_CARD_MONTH';
-    }
-
-    if (credentials.card_month < 1 || credentials.card_month > 12) {
-      throw 'ERR_INVALID_CARD_MONTH';
-    }
-
-    if (typeof credentials.card_year !== config.type_number) {
-      throw 'ERR_INVALID_CARD_YEAR';
-    }
-
-    if (credentials.card_year < new Date().getUTCFullYear()) {
-      throw 'ERR_INVALID_CARD_YEAR';
-    }
-
-    if (typeof credentials.card_cvc !== config.type_number) {
-      throw 'ERR_INVALID_CARD_CVC';
-    }
-
-    if (credentials.card_cvc < 1 || credentials.card_cvc % 1 !== 0) {
-      throw 'ERR_INVALID_CARD_CVC';
-    }
-  }
-
   async get_orders(credentials: any): Promise<void> {}
 
   async create_order(credentials: any): Promise<void> {
@@ -1306,61 +1472,94 @@ export class order_validator_init {
     if (credentials.name !== config.type_string) {
       throw 'ERR_INVALID_NAME';
     }
-    credentials.name = str_remove_space(credentials.name);
+
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
+    }
+
+    if (typeof credentials.phone !== config.type_string) {
+      throw 'ERR_INVALID_PHONE';
+    }
+
+    // ---
+
     if (credentials.name.length > 32) {
       throw 'ERR_LONG_NAME';
     }
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
+    }
+
+    if (credentials.phone.length > 14) {
+      throw 'ERR_LONG_PHONE';
+    }
+
+    // ---
+
+    credentials.name = str_remove_space(credentials.name);
+    credentials.email = str_remove_space(credentials.email).toLowerCase();
+    credentials.phone = str_remove_space(credentials.phone);
+
+    // ---
+
     if (
       new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
     ) {
       throw 'ERR_INVALID_NAME';
     }
 
-    // ====================
-
-    if (typeof credentials.email !== config.type_string) {
-      throw 'ERR_INVALID_EMAIL';
-    }
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
-    if (credentials.email.length > 32) {
-      throw 'ERR_LONG_EMAIL';
-    }
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    // ====================
-
-    if (typeof credentials.phone !== config.type_string) {
-      throw 'ERR_INVALID_PHONE';
-    }
-    credentials.phone = str_remove_space(credentials.phone);
-    if (credentials.phone.length > 14) {
-      throw 'ERR_LONG_PHONE';
-    }
     if (validator.isMobilePhone(credentials.phone) === false) {
       throw 'ERR_INVALID_PHONE';
     }
 
-    common_validator_init.address(credentials);
-    await common_validator_init.basket(credentials.basket, this.options);
+    // ---
 
-    this.validate_card(credentials);
+    common_validator_init.validate_address(credentials);
+    common_validator_init.validate_card(credentials);
+    await common_validator_init.validate_basket(
+      credentials.basket,
+      this.options,
+    );
+
+    // ---
 
     if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
 
-      const res_captcha: any = await axios.post(
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        console.warn(err);
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
@@ -1435,48 +1634,6 @@ export class provision_validator_init {
     this.options = options;
   }
 
-  validate_card(credentials: any): void {
-    if (typeof credentials.card_number !== config.type_string) {
-      throw 'ERR_INVALID_CARD_NUMBER';
-    }
-
-    credentials.card_number = str_remove_space(credentials.card_number);
-
-    if (credentials.card_number.length !== 16) {
-      throw 'ERR_INVALID_CARD_NUMBER';
-    }
-
-    for (let i: number = 0; i < credentials.card_number.length; i++) {
-      if (isNaN(Number(credentials.card_number[i]))) {
-        throw 'ERR_INVALID_CARD_NUMBER';
-      }
-    }
-
-    if (typeof credentials.card_month !== config.type_number) {
-      throw 'ERR_INVALID_CARD_MONTH';
-    }
-
-    if (credentials.card_month < 1 || credentials.card_month > 12) {
-      throw 'ERR_INVALID_CARD_MONTH';
-    }
-
-    if (typeof credentials.card_year !== config.type_number) {
-      throw 'ERR_INVALID_CARD_YEAR';
-    }
-
-    if (credentials.card_year < new Date().getUTCFullYear()) {
-      throw 'ERR_INVALID_CARD_YEAR';
-    }
-
-    if (typeof credentials.card_cvc !== config.type_number) {
-      throw 'ERR_INVALID_CARD_CVC';
-    }
-
-    if (credentials.card_cvc < 1 || credentials.card_cvc % 1 !== 0) {
-      throw 'ERR_INVALID_CARD_CVC';
-    }
-  }
-
   async get_provision(credentials: any): Promise<void> {
     if (typeof credentials._id !== config.type_string) {
       throw 'ERR_INVALID_ID';
@@ -1491,50 +1648,63 @@ export class provision_validator_init {
     if (typeof credentials.name !== config.type_string) {
       throw 'ERR_INVALID_NAME';
     }
-    credentials.name = str_remove_space(credentials.name);
+
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
+    }
+
+    if (typeof credentials.phone !== config.type_string) {
+      throw 'ERR_INVALID_PHONE';
+    }
+
+    // ---
+
     if (credentials.name.length > 32) {
       throw 'ERR_LONG_NAME';
     }
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
+    }
+
+    if (credentials.phone.length > 14) {
+      throw 'ERR_LONG_PHONE';
+    }
+
+    // ---
+
+    credentials.name = str_remove_space(credentials.name);
+    credentials.email = str_remove_space(credentials.email);
+    credentials.phone = str_remove_space(credentials.phone);
+
+    // ---
+
     if (
       new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
     ) {
       throw 'ERR_INVALID_NAME';
     }
 
-    // ====================
-
-    if (typeof credentials.email !== config.type_string) {
-      throw 'ERR_INVALID_EMAIL';
-    }
-    credentials.email = str_remove_space(credentials.email);
-    if (credentials.email.length > 32) {
-      throw 'ERR_LONG_EMAIL';
-    }
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    // ====================
-
-    if (typeof credentials.phone !== config.type_string) {
-      throw 'ERR_INVALID_PHONE';
-    }
-    credentials.phone = str_remove_space(credentials.phone);
-    if (credentials.phone.length > 14) {
-      throw 'ERR_LONG_PHONE';
-    }
     if (validator.isMobilePhone(credentials.phone) === false) {
       throw 'ERR_INVALID_PHONE';
     }
 
-    common_validator_init.address(credentials);
-    await common_validator_init.basket(credentials.basket, this.options);
+    // ---
 
-    this.validate_card(credentials);
+    common_validator_init.validate_address(credentials);
+    common_validator_init.validate_card(credentials);
+    await common_validator_init.validate_basket(
+      credentials.basket,
+      this.options,
+    );
 
-    if (credentials.coupon !== undefined) {
-      if (typeof credentials.coupon !== config.type_string) {
-        throw 'ERR_INVALID_COUPON';
+    if (credentials.coupon === config.type_string) {
+      if (credentials.coupon.length > 16) {
+        throw 'ERR_LONG_COUPON';
       }
 
       credentials.coupon = str_remove_space(credentials.coupon).toLowerCase();
@@ -1545,19 +1715,37 @@ export class provision_validator_init {
     }
 
     if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
 
-      const res_captcha: any = await axios.post(
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        console.warn(err);
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
@@ -1758,8 +1946,11 @@ export class wallet_validator_init {
       throw 'ERR_INVALID_PHONE';
     }
 
-    common_validator_init.address(credentials);
-    await common_validator_init.basket(credentials.basket, this.options);
+    common_validator_init.validate_address(credentials);
+    await common_validator_init.validate_basket(
+      credentials.basket,
+      this.options,
+    );
 
     const settings = JSON.parse(await this.options.redis.GET('settings'));
 
@@ -1774,19 +1965,36 @@ export class wallet_validator_init {
     }
 
     if (config.ENV_API_KEY_CAPTCHA) {
-      const body_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
 
-      const res_captcha: any = await axios.post(
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        body_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }
@@ -1907,6 +2115,10 @@ export async function wallet_create_doc(
   credentials: any,
   options: options_i,
 ): Promise<Document> {
+  const blockchain_id_solana: string = 'solana';
+  const blockchain_id_ethereum: string = 'ethereum';
+  const blockchain_id_bitcoin: string = 'bitcoin';
+
   const settings = JSON.parse(await options.redis.GET('settings'));
 
   let wallet: wallet_i = { private: '', public: '' };
@@ -1963,6 +2175,10 @@ export async function wallet_create_doc(
     updated_at: new Date(),
   };
 
+  if (credentials.blockchain !== blockchain_id_solana) {
+    // delete doc.helius_subscription;
+  }
+
   return doc;
 }
 
@@ -1981,11 +2197,11 @@ export class coupon_validator_init {
       throw 'ERR_INVALID_CODE';
     }
 
-    credentials.code = str_remove_space(credentials.code).toLowerCase();
-
     if (credentials.code.length > 16) {
       throw 'ERR_LONG_CODE';
     }
+
+    credentials.code = str_remove_space(credentials.code).toLowerCase();
   }
 }
 
@@ -1993,7 +2209,9 @@ export async function coupon_generate_code(
   options: options_i,
 ): Promise<string> {
   let code: string = random(8);
-  let coupon: any = await options.db.coupons.findOne({ code: code });
+  let coupon: Document | null = await options.db.coupons.findOne({
+    code: code,
+  });
 
   while (coupon) {
     code = random(8);
@@ -2008,11 +2226,12 @@ export async function coupon_create_doc(
   options: options_i,
 ): Promise<Document> {
   let code: string | undefined = credentials.code;
+
   if (code === undefined) {
     code = await coupon_generate_code(options);
   }
 
-  const doc: any = {
+  const doc: Document = {
     code: code,
     discount: credentials.discount,
     quantity: credentials.quantity,
@@ -2060,11 +2279,9 @@ export class review_validator_init {
       throw 'ERR_EXISTING_REVIEW';
     }
 
-    if (typeof credentials.rating !== config.type_number) {
-      throw 'ERR_INVALID_RATING';
-    }
+    // ---
 
-    if (credentials.rating < 0 || credentials.rating > 5) {
+    if (typeof credentials.rating !== config.type_number) {
       throw 'ERR_INVALID_RATING';
     }
 
@@ -2072,10 +2289,20 @@ export class review_validator_init {
       throw 'ERR_INVALID_COMMENT';
     }
 
-    credentials.comment = str_remove_space(credentials.comment);
+    // ---
 
     if (credentials.comment.length > 256) {
       throw 'ERR_LONG_REVIEW';
+    }
+
+    // ---
+
+    credentials.comment = str_remove_space(credentials.comment);
+
+    // ---
+
+    if (credentials.rating < 0 || credentials.rating > 5) {
+      throw 'ERR_INVALID_RATING';
     }
 
     if (
@@ -2123,11 +2350,11 @@ export class review_validator_init {
     }
 
     if (typeof credentials.comment === config.type_string) {
-      credentials.comment = str_remove_space(credentials.comment);
-
       if (credentials.comment.length > 256) {
         throw 'ERR_LONG_REVIEW';
       }
+
+      credentials.comment = str_remove_space(credentials.comment);
 
       if (
         /^[a-zA-Z0-9ÇçĞğİıÖöŞşÜü.,!?$&:#()\-/ \p{Extended_Pictographic}]*$/u.test(
@@ -2178,6 +2405,10 @@ export class admin_validator_init {
   async settings_edit(credentials: any): Promise<void> {}
 
   async products_create(credentials: any): Promise<void> {
+    if (typeof credentials.img !== config.type_object) {
+      throw 'ERR_INVALID_IMG';
+    }
+
     if (Array.isArray(credentials.img) === false) {
       throw 'ERR_INVALID_IMG';
     }
@@ -2187,57 +2418,67 @@ export class admin_validator_init {
     }
 
     for (let i: number = 0; i < credentials.img.length; i++) {
-      common_validator_init.base64(credentials.img[i]);
+      common_validator_init.validate_base64(credentials.img[i]);
     }
 
+    // ---
+
     if (typeof credentials.name !== config.type_string) {
-      throw 'ERR_INVALID_NAME';
-    }
-    credentials.name = str_remove_space(credentials.name);
-    if (credentials.name.length > 32) {
-      throw 'ERR_LONG_NAME';
-    }
-    if (
-      new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
-    ) {
       throw 'ERR_INVALID_NAME';
     }
 
     if (typeof credentials.description !== config.type_string) {
       throw 'ERR_INVALID_DESCRIPTION';
     }
-    credentials.description = str_remove_space(credentials.description);
-    if (credentials.description.length > 128) {
-      throw 'ERR_LONG_DESCRIPTION';
-    }
-    if (
-      new RegExp(/^[a-zA-Z0-9a-zA-ZÇçĞğİıÖöŞşÜü.,!:#()\-\n/ ]+$/).test(
-        credentials.description,
-      ) === false
-    ) {
-      throw 'ERR_INVALID_DESCRIPTION';
-    }
 
     if (typeof credentials.category !== config.type_string) {
-      throw 'ERR_INVALID_CATEGORY';
-    }
-    credentials.category = str_remove_space(credentials.category).toLowerCase();
-    if (credentials.category.length > 32) {
-      throw 'ERR_LONG_CATEGORY';
-    }
-    if (validator.isAlpha(credentials.category) === false) {
       throw 'ERR_INVALID_CATEGORY';
     }
 
     if (typeof credentials.price !== config.type_number) {
       throw 'ERR_INVALID_PRICE';
     }
-    if (credentials.price < 1) {
-      throw 'ERR_INVALID_PRICE';
-    }
 
     if (typeof credentials.quantity !== config.type_number) {
       throw 'ERR_INVALID_QUANTITY';
+    }
+
+    // ---
+
+    if (credentials.name.length > 32) {
+      throw 'ERR_LONG_NAME';
+    }
+
+    if (credentials.description.length > 128) {
+      throw 'ERR_LONG_DESCRIPTION';
+    }
+
+    if (credentials.category.length > 32) {
+      throw 'ERR_LONG_CATEGORY';
+    }
+
+    // ---
+
+    credentials.name = str_remove_space(credentials.name);
+    credentials.description = str_remove_space(credentials.description);
+    credentials.category = str_remove_space(credentials.category).toLowerCase();
+
+    // ---
+
+    if (/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/.test(credentials.name) === false) {
+      throw 'ERR_INVALID_NAME';
+    }
+
+    if (
+      /^[a-zA-Z0-9a-zA-ZÇçĞğİıÖöŞşÜü.,!:#()\-\n/ ]+$/.test(
+        credentials.description,
+      ) === false
+    ) {
+      throw 'ERR_INVALID_DESCRIPTION';
+    }
+
+    if (validator.isAlpha(credentials.category) === false) {
+      throw 'ERR_INVALID_CATEGORY';
     }
 
     if (credentials.quantity < 1) {
@@ -2246,6 +2487,10 @@ export class admin_validator_init {
 
     if (credentials.quantity % 1 !== 0) {
       throw 'ERR_INVALID_QUANTITY';
+    }
+
+    if (credentials.price < 1) {
+      throw 'ERR_INVALID_PRICE';
     }
   }
 
@@ -2262,28 +2507,23 @@ export class admin_validator_init {
       throw 'ERR_MISSING_PRODUCT';
     }
 
-    if (
-      typeof credentials.img === config.type_string ||
-      typeof credentials.img === config.type_number
-    ) {
-      // will assume its a base64 string
-      if (typeof credentials.img === config.type_string) {
-        const img: string[] = JSON.parse(product.img);
+    // will assume its a base64 string
+    if (typeof credentials.img === config.type_string) {
+      const img: string[] = JSON.parse(product.img);
 
-        if (img.length >= 9) {
-          throw 'ERR_LIMIT_IMG';
-        }
-
-        common_validator_init.base64(credentials.img);
+      if (img.length >= 9) {
+        throw 'ERR_LIMIT_IMG';
       }
 
-      // will assume you are trying to delete an image at a specific index
-      if (typeof credentials.img === config.type_number) {
-        const img: string[] = JSON.parse(product.img);
+      common_validator_init.validate_base64(credentials.img);
+    }
 
-        if (credentials.img < 0 || credentials.img >= img.length) {
-          throw 'ERR_INVALID_IMG';
-        }
+    // will assume you are trying to delete an image at a specific index
+    if (typeof credentials.img === config.type_number) {
+      const img: string[] = JSON.parse(product.img);
+
+      if (credentials.img < 0 || credentials.img >= img.length) {
+        throw 'ERR_INVALID_IMG_INDEX';
       }
     }
 
@@ -2291,13 +2531,14 @@ export class admin_validator_init {
       if (typeof credentials.name !== config.type_string) {
         throw 'ERR_INVALID_NAME';
       }
-      credentials.name = str_remove_space(credentials.name);
+
       if (credentials.name.length > 32) {
         throw 'ERR_LONG_NAME';
       }
-      if (
-        new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
-      ) {
+
+      credentials.name = str_remove_space(credentials.name);
+
+      if (/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/.test(credentials.name) === false) {
         throw 'ERR_INVALID_NAME';
       }
     }
@@ -2306,12 +2547,15 @@ export class admin_validator_init {
       if (typeof credentials.description !== config.type_string) {
         throw 'ERR_INVALID_DESCRIPTION';
       }
-      credentials.description = str_remove_space(credentials.description);
+
       if (credentials.description.length > 128) {
         throw 'ERR_LONG_DESCRIPTION';
       }
+
+      credentials.description = str_remove_space(credentials.description);
+
       if (
-        new RegExp(/^[a-zA-Z0-9a-zA-ZÇçĞğİıÖöŞşÜü.,!:#()\-\n/ ]+$/).test(
+        /^[a-zA-Z0-9a-zA-ZÇçĞğİıÖöŞşÜü.,!:#()\-\n/ ]+$/.test(
           credentials.description,
         ) === false
       ) {
@@ -2323,12 +2567,15 @@ export class admin_validator_init {
       if (typeof credentials.category !== config.type_string) {
         throw 'ERR_INVALID_CATEGORY';
       }
-      credentials.category = str_remove_space(
-        credentials.category,
-      ).toLowerCase();
+
       if (credentials.category.length > 32) {
         throw 'ERR_LONG_CATEGORY';
       }
+
+      credentials.category = str_remove_space(
+        credentials.category,
+      ).toLowerCase();
+
       if (validator.isAlpha(credentials.category) === false) {
         throw 'ERR_INVALID_CATEGORY';
       }
@@ -2338,6 +2585,7 @@ export class admin_validator_init {
       if (typeof credentials.price !== config.type_number) {
         throw 'ERR_INVALID_PRICE';
       }
+
       if (credentials.price < 1) {
         throw 'ERR_INVALID_PRICE';
       }
@@ -2363,6 +2611,8 @@ export class admin_validator_init {
       throw 'ERR_INVALID_ID';
     }
 
+    // ---
+
     const product: Document | null = this.options.db.products.findOne({
       _id: ObjectId.createFromHexString(credentials._id),
     });
@@ -2371,7 +2621,11 @@ export class admin_validator_init {
       throw 'ERR_MISSING_PRODUCT';
     }
 
+    // ---
+
     credentials._id = credentials._id.toLowerCase();
+
+    // ---
 
     const res = await Promise.all([
       this.options.db.provisions.findOne({
@@ -2406,15 +2660,23 @@ export class admin_validator_init {
         throw 'ERR_INVALID_CODE';
       }
 
-      credentials.code = str_remove_space(credentials.code).toLowerCase();
+      // ---
 
       if (credentials.code.length > 16) {
         throw 'ERR_LONG_CODE';
       }
 
+      // ---
+
+      credentials.code = str_remove_space(credentials.code).toLowerCase();
+
+      // ---
+
       if (validator.isAlphanumeric(credentials.code) === false) {
         throw 'ERR_INVALID_CODE';
       }
+
+      // ---
 
       const coupon: Document | null = await this.options.db.coupons.findOne({
         code: credentials.code,
@@ -2425,16 +2687,20 @@ export class admin_validator_init {
       }
     }
 
-    if (typeof credentials.discount !== config.type_number) {
-      throw 'ERR_INVALID_DISCOUNT';
-    }
+    // ---
 
-    if (credentials.discount < 1 || credentials.discount > 100) {
+    if (typeof credentials.discount !== config.type_number) {
       throw 'ERR_INVALID_DISCOUNT';
     }
 
     if (typeof credentials.quantity !== config.type_number) {
       throw 'ERR_INVALID_QUANTITY';
+    }
+
+    // ---
+
+    if (credentials.discount < 1 || credentials.discount > 100) {
+      throw 'ERR_INVALID_DISCOUNT';
     }
 
     if (credentials.quantity < 1) {
@@ -2445,20 +2711,40 @@ export class admin_validator_init {
       throw 'ERR_INVALID_QUANTITY';
     }
 
-    if (config.ENV_API_KEY_CAPTCHA) {
-      const urlencoded_captcha: string =
-        'response=' +
-        credentials.captcha +
-        '&secret=' +
-        config.ENV_API_KEY_CAPTCHA;
+    // ---
 
-      const res_captcha: any = await axios.post(
+    if (config.ENV_API_KEY_CAPTCHA) {
+      if (typeof credentials.captcha !== config.type_string) {
+        throw 'ERR_INVALID_CAPTCHA';
+      }
+
+      if (credentials.captcha.length > 2048) {
+        throw 'ERR_LONG_CAPTCHA';
+      }
+
+      const captcha_body = new URLSearchParams({
+        response: credentials.captcha,
+        secret: config.ENV_API_KEY_CAPTCHA,
+      }).toString();
+
+      const captcha_res: any = await fetch(
         'https://api.hcaptcha.com/siteverify',
-        urlencoded_captcha,
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: captcha_body,
+        },
       );
 
-      if (res_captcha.data.success === false) {
+      if (captcha_res.ok === false) {
+        const err: string = await captcha_res.text(); // free the TCP connection
+        console.warn(err);
+        throw 'ERR_CAPTCHA';
+      }
+
+      const captcha_data = await captcha_res.json();
+
+      if (captcha_data.success === false) {
         throw 'ERR_CAPTCHA';
       }
     }

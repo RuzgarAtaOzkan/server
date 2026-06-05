@@ -1,7 +1,6 @@
 'use strict';
 
 // MODULES
-import axios from 'axios';
 import WebSocket from 'ws';
 
 // CONFIG
@@ -71,7 +70,33 @@ export async function socket_wallet_connect_solana(
       return;
     }
 
-    // data.method === 'accountNotification'
+    /*
+    data.method === 'accountNotification'
+    Sample socket message from account notification (e.g. when a wallet receives SOL lamports)
+    {
+      "jsonrpc": "2.0",
+      "method": "accountNotification",
+      "params": {
+        "result": {
+          "context": {
+            "slot": 5199307
+          },
+          "value": {
+            "data": [
+              "11116bv5nS2h3y12kD1yUKeMZvGcKLSjQgX6BeV7u1FrjeJcKfsHPXHRDEHrBesJhZyqnnq9qJeUuF7WHxiuLuL5twc38w2TXNLxnDbjmuR",
+              "base58"
+            ],
+            "executable": false,
+            "lamports": 33594,
+            "owner": "11111111111111111111111111111111",
+            "rentEpoch": 635,
+            "space": 80
+          }
+        },
+        "subscription": 23784
+      }
+    }
+    */
 
     const wallet: Document = await options.db.wallets.findOne({
       helius_subscription: data.params.subscription,
@@ -191,32 +216,6 @@ export async function socket_wallet_connect_solana(
         params: [wallet.helius_subscription],
       }),
     );
-
-    /*
-    {
-      "jsonrpc": "2.0",
-      "method": "accountNotification",
-      "params": {
-        "result": {
-          "context": {
-            "slot": 5199307
-          },
-          "value": {
-            "data": [
-              "11116bv5nS2h3y12kD1yUKeMZvGcKLSjQgX6BeV7u1FrjeJcKfsHPXHRDEHrBesJhZyqnnq9qJeUuF7WHxiuLuL5twc38w2TXNLxnDbjmuR",
-              "base58"
-            ],
-            "executable": false,
-            "lamports": 33594,
-            "owner": "11111111111111111111111111111111",
-            "rentEpoch": 635,
-            "space": 80
-          }
-        },
-        "subscription": 23784
-      }
-    }
-    */
   });
 
   socket.on('close', function (data: any) {
@@ -288,17 +287,31 @@ export async function socket_wallet_connect_ethereum(
       return;
     }
 
-    // accountSubscribe response from wallet_create
+    // eth_subscribe response from socket.send() in socket open on init
     if (data.result) {
       return;
     }
 
-    const res_block = await axios.post(blockchain.url_rpc, {
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'eth_getBlockByHash',
-      params: [data.params.result.hash, true],
+    // get block for confirmed transactions with the hash coming from newHeads
+    const res_block = await fetch(blockchain.url_rpc, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'eth_getBlockByHash',
+        params: [data.params.result.hash, true],
+      }),
     });
+
+    if (res_block.ok === false) {
+      const err: string = await res_block.text(); // free the TCP connection
+      console.warn(err);
+      return;
+    }
 
     /*
     sample HTTP RPC getBlockByHash response
@@ -327,7 +340,9 @@ export async function socket_wallet_connect_ethereum(
     }
     */
 
-    const transactions: any[] = res_block.data.result.transactions;
+    const data_block: any = await res_block.json();
+
+    const transactions: any[] = data_block.result.transactions;
 
     const accounts: string[] = [];
     for (let i: number = 0; i < transactions.length; i++) {
@@ -501,7 +516,7 @@ export async function cron_wallet_scan_solana(
     }
   }
 
-  const limit: number = 128; // chunk size
+  const limit: number = 64; // chunk size, helius RPC API accepts maximum 100 address at once
   let skip: number = 0;
 
   while (true) {
@@ -529,8 +544,7 @@ export async function cron_wallet_scan_solana(
           price += wallets[i].basket[j].price;
         }
 
-        let amount: number = price / blockchain_price;
-        amount = fixd(amount, blockchain_price); // remove dust money
+        const amount: number = fixd(price / blockchain_price, blockchain_price); // remove dust money
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },
@@ -539,25 +553,63 @@ export async function cron_wallet_scan_solana(
       }
     }
 
-    const res = await axios.post(
-      blockchain.url_rpc,
-      {
+    const res = await fetch(blockchain.url_rpc, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
         jsonrpc: '2.0',
         id: 1,
         method: 'getMultipleAccounts',
         params: [publics],
-      },
-      { headers: { 'Content-Type': 'application/json' } },
-    );
+      }),
+    });
 
-    for (let i: number = 0; i < res.data.result.value.length; i++) {
+    if (res.ok === false) {
+      const err: string = await res.text(); // free the TCP connection
+      console.warn(err);
+      continue;
+    }
+
+    const data: any = await res.json();
+
+    /*
+    sample HTTP RCP helius getMultipleAccounts response
+    {
+      "jsonrpc": "2.0",
+      "id": "1",
+      "result": {
+        "context": {
+          "apiVersion": "2.0.15",
+          "slot": 341197247
+        },
+        "value": [
+          {
+            "lamports": 88849814690250,
+            "owner": "11111111111111111111111111111111",
+            "data": [
+              "",
+              "base58"
+            ],
+            "executable": false,
+            "rentEpoch": 18446744073709552000,
+            "space": 0
+          }
+        ]
+      }
+    }
+    */
+
+    for (let i: number = 0; i < data.result.value.length; i++) {
       // validate current wallet to see if it is idle and waiting for deletion or waiting for price update
 
       // expiration gap duration should be specific to the blockchain because every blockchain has a different transaction confirmation duration
       const expired: boolean =
         Date.now() - wallets[i].updated_at.valueOf() > config.time_one_hour_ms;
 
-      const account: any | null = res.data.result.value[i];
+      const account: any | null = data.result.value[i];
 
       if (account === null) {
         if (expired) {
@@ -734,7 +786,7 @@ export async function cron_wallet_scan_ethereum(
     }
   }
 
-  const limit: number = 128; // chunk size
+  const limit: number = 64; // chunk size
   let skip: number = 0;
 
   while (true) {
@@ -777,20 +829,33 @@ export async function cron_wallet_scan_ethereum(
     }
 
     // rpc response
-    const res = await axios.post(blockchain.url_rpc, body, {
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(blockchain.url_rpc, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    for (let i: number = 0; i < res.data.length; i++) {
+    if (res.ok === false) {
+      const err: string = await res.text(); // free the TCP connection
+      console.warn(err);
+      continue;
+    }
+
+    const data: any = await res.json();
+
+    for (let i: number = 0; i < data.length; i++) {
       // validate current wallet to see if it is idle and waiting for deletion or waiting for price update
 
-      const index: number = res.data[i].id - 1; // wallet index
+      const index: number = data[i].id - 1; // wallet index in wallets array from mongodb
 
       const expired: boolean =
         Date.now() - wallets[index].updated_at.valueOf() >
         config.time_one_hour_ms;
 
-      let amount: number = parseInt(res.data[i].result, 16);
+      let amount: number = parseInt(data[i].result, 16); // deposited amount
       for (let i: number = 0; i < blockchain.coin_decimals; i++) {
         amount = amount / 10;
       }
@@ -939,20 +1004,33 @@ export async function cron_wallet_scan_bitcoin(
     }
 
     // rpc response
-    const res = await axios.post(blockchain.url_rpc, body, {
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(blockchain.url_rpc, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
     });
 
-    for (let i: number = 0; i < res.data.length; i++) {
+    if (res.ok === false) {
+      const err: string = await res.text(); // free the TCP connection
+      console.warn(err);
+      continue;
+    }
+
+    const data: any = await res.json();
+
+    for (let i: number = 0; i < data.length; i++) {
       // validate current wallet to see if it is idle and waiting for deletion or waiting for price update
 
-      const index: number = res.data[i].id - 1; // wallet index
+      const index: number = data[i].id - 1; // wallet index
 
       const expired: boolean =
         Date.now() - wallets[index].updated_at.valueOf() >
         config.time_one_hour_ms;
 
-      let amount: number = parseInt(res.data[i].result, 16);
+      let amount: number = parseInt(data[i].result, 16);
       for (let i: number = 0; i < blockchain.coin_decimals; i++) {
         amount = amount / 10;
       }
@@ -1053,20 +1131,32 @@ export async function cron_wallet_scan_withdraw_solana(
   }
 
   // 1. Get recent blockhash
-  const res_blockhash: any = await axios.post(
-    blockchain.url_rpc,
-    {
+  const res_blockhash = await fetch(blockchain.url_rpc, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
       jsonrpc: '2.0',
       id: 1,
       method: 'getLatestBlockhash',
-    },
-    { headers: { 'Content-Type': 'application/json' } },
-  );
+    }),
+  });
+
+  if (res_blockhash.ok === false) {
+    const err: string = await res_blockhash.text(); // free the TCP connection
+    console.warn(err);
+    return;
+  }
+
+  const data_blockhash: any = await res_blockhash.json();
+
   const blockhash: Uint8Array = base58_decode(
-    res_blockhash.data.result.value.blockhash,
+    data_blockhash.result.value.blockhash,
   );
 
-  const limit: number = 32; // chunk size
+  const limit: number = 64; // chunk size
   let skip: number = 0;
 
   while (true) {
@@ -1081,19 +1171,30 @@ export async function cron_wallet_scan_withdraw_solana(
       publics.push(wallets[i].public);
     }
 
-    const res_accounts = await axios.post(
-      blockchain.url_rpc,
-      {
+    const res_accounts = await fetch(blockchain.url_rpc, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
         jsonrpc: '2.0',
         id: '1',
         method: 'getMultipleAccounts',
         params: [publics],
-      },
-      { headers: { 'Content-Type': 'application/json' } },
-    );
+      }),
+    });
 
-    for (let i: number = 0; i < res_accounts.data.result.value.length; i++) {
-      const account = res_accounts.data.result.value[i];
+    if (res_accounts.ok === false) {
+      const err: string = await res_accounts.text(); // free the TCP connection
+      console.warn(err);
+      continue;
+    }
+
+    const data_accounts: any = await res_accounts.json();
+
+    for (let i: number = 0; i < data_accounts.result.value.length; i++) {
+      const account = data_accounts.result.value[i];
 
       const seed: Uint8Array = base58_decode(wallets[i].private);
       const from: Uint8Array = base58_decode(wallets[i].public);
@@ -1162,15 +1263,30 @@ export async function cron_wallet_scan_withdraw_solana(
         message,
       ]);
 
-      // IMPORTANT: message instruction buffer alignment doesn't work, we can't send a transaction to our main wallet to withdraw the order, TODO: find a solution without usind any 3rd party like @solana/web3.js
+      // IMPORTANT: message instruction buffer alignment doesn't work, we can't send a transaction to our main wallet to withdraw the order, TODO: find a solution without usind any 3rd party module like @solana/web3.js
 
       // 5. Send transaction
-      const res_transaction = await axios.post(blockchain.url_rpc, {
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'sendTransaction',
-        params: [transaction.toString('base64'), { encoding: 'base64' }],
+      const res_transaction = await fetch(blockchain.url_rpc, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'sendTransaction',
+          params: [transaction.toString('base64'), { encoding: 'base64' }],
+        }),
       });
+
+      if (res_transaction.ok === false) {
+        const err: string = await res_transaction.text(); // free the TCP connection
+        console.warn(err);
+        continue;
+      }
+
+      const data_transaction: any = await res_transaction.json();
     }
 
     if (wallets.length < limit) {
