@@ -1,9 +1,5 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
 import { options_i } from 'interfaces/common';
@@ -11,9 +7,8 @@ import { options_i } from 'interfaces/common';
 // CONFIG
 import config from '../config';
 
-// UTILS
+// UTILS/SERVICES
 import { review_validator_init, review_create_doc } from '../utils/services';
-import { random } from '../utils/common';
 
 class service_review_init {
   private readonly options: options_i;

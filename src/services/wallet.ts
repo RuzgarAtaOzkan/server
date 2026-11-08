@@ -4,7 +4,7 @@
 import { Document, InsertOneResult } from 'mongodb';
 import { options_i } from 'interfaces/common';
 
-// UTILS
+// UTILS/SERVICES
 import { wallet_validator_init, wallet_create_doc } from '../utils/services';
 
 class service_wallet_init {

@@ -18,7 +18,7 @@ import bind_routes from '../api';
 // CONFIG
 import config from '../config';
 
-// UTILS
+// UTILS/COMMON
 import { random } from '../utils/common';
 
 export async function load_fastify(

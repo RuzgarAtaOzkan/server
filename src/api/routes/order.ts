@@ -1,7 +1,7 @@
 'use strict';
 
 // INTERFACES
-import { DeleteResult, Document, UpdateResult } from 'mongodb';
+import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
 
@@ -16,10 +16,14 @@ function bind_order_routes(
   services: services_i,
   options: any,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
+    // #title: GET PROFILE
+    // #state: Public
+    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_orders,
+      url: config.endpoint_orders,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -38,7 +42,7 @@ function bind_order_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_orders_delivery,
+      url: config.endpoint_orders_delivery,
       handler: async function (request: any, reply: any) {
         const credentials: any = { code: request.params.code };
 

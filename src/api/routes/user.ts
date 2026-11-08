@@ -1,7 +1,8 @@
 'use strict';
 
 // INTERFACES
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { UpdateResult } from 'mongodb';
+import { FastifyInstance, FastifyReply } from 'fastify';
 import { services_i } from 'interfaces/api';
 import {
   user_signup_credentials_i,
@@ -17,6 +18,7 @@ import {
   user_signout_credentials_i,
   user_password_reset_credentials_i,
 } from 'interfaces/services';
+import { user_profile_i } from 'interfaces/utils';
 import { options_i } from 'interfaces/common';
 
 // API/MIDDLEWARE
@@ -24,8 +26,6 @@ import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
-import { user_profile_i } from 'interfaces/utils';
-import { UpdateResult } from 'mongodb';
 
 function bind_user_routes(
   server: FastifyInstance,
@@ -35,7 +35,7 @@ function bind_user_routes(
   const routes = [
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_user_signup,
+      url: config.endpoint_user_signup,
       handler: async function (request: any, reply: FastifyReply) {
         const credentials: user_signup_credentials_i = {
           name: request.body.name,
@@ -75,7 +75,7 @@ function bind_user_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_user_signin,
+      url: config.endpoint_user_signin,
       handler: async function (request: any, reply: any) {
         const credentials: user_signin_credentials_i = {
           uid: request.body.uid,
@@ -106,7 +106,7 @@ function bind_user_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_user_email_verify,
+      url: config.endpoint_user_email_verify,
       handler: async function (request: any, reply: any) {
         try {
           const profile: user_profile_i = await services.user.verify_email(
@@ -121,7 +121,7 @@ function bind_user_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_user_profile,
+      url: config.endpoint_user_profile,
       handler: async function (request: any, reply: any) {
         const credentials: user_get_profile_credentials_i = {
           sid: request.cookies[config.ENV_COOKIE_NAME],
@@ -150,7 +150,7 @@ function bind_user_routes(
     },
     {
       method: 'PATCH',
-      url: '/v1' + config.endpoint_user_profile,
+      url: config.endpoint_user_profile,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -179,7 +179,7 @@ function bind_user_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_user_email_change,
+      url: config.endpoint_user_email_change,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -206,7 +206,7 @@ function bind_user_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_user_password_reset,
+      url: config.endpoint_user_password_reset,
       handler: async function (request: any, reply: any) {
         const credentials: user_password_reset_credentials_i = {
           password: request.body.password,
@@ -225,7 +225,7 @@ function bind_user_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_user_password_change,
+      url: config.endpoint_user_password_change,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -247,7 +247,7 @@ function bind_user_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_user_signout,
+      url: config.endpoint_user_signout,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },

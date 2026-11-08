@@ -1,6 +1,6 @@
 # Fastify API Server
 
-A **scalable**, **secure**, **production-grade API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
+**scalable**, **secure**, **production-grade e-commerce API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
 
 The project focuses on **simplicity**, **reliability**, and **long-term maintainability**.
 It intentionally avoids modern JavaScript over-engineering and unnecessary abstractions.
@@ -44,7 +44,7 @@ This project is designed and tested exclusively on Linux systems (preferably Deb
 
 ### Node.js
 
-- **Node.js v20.6.0 or later is required**
+- **Node.js v20.06.0 or later is required**
 
 Check installation:
 
@@ -109,6 +109,7 @@ Replace `server` with your actual project name and fill all values correctly.
 ```env
 # Fastify
 HOST=127.0.0.1
+
 PORT=3001
 PORT_SOCKET=3002
 

@@ -16,10 +16,14 @@ function bind_product_routes(
   services: services_i,
   options: any,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
+    // #title: GET PROFILE
+    // #state: Public
+    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_products,
+      url: config.endpoint_products,
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.query };
 
@@ -35,7 +39,7 @@ function bind_product_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_products_id,
+      url: config.endpoint_products_id,
       handler: async function (request: any, reply: any) {
         const credentials: any = { _id: request.params._id };
 

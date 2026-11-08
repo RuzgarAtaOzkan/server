@@ -1,26 +1,30 @@
 import { role_t, type_t, blockchain_t } from 'types/config';
 
 export interface blockchain_i {
-  readonly id: blockchain_t;
-  readonly coin_address?: string;
-  readonly coin_address_wrapped?: string;
+  readonly id: blockchain_t; // "solana" | "ethereum" | "bitcoin"
+
+  readonly coin_address: string;
+  readonly coin_address_wrapped: string;
   readonly coin_name: string;
   readonly coin_symbol: string;
   readonly coin_decimals: number;
   readonly coin_img: string;
-  readonly usdt_address?: string;
-  readonly usdt_decimals?: number;
-  readonly usdc_address?: string;
-  readonly usdc_decimals?: number;
+
+  readonly usdt_address: string;
+  readonly usdt_decimals: number;
+  readonly usdc_address: string;
+  readonly usdc_decimals: number;
+
   readonly url_explorer: string;
   readonly url_binance_price: string;
   readonly url_rpc: string;
   readonly url_rpc_ws: string;
-  readonly wallet_generate: Function;
-  readonly wallet_scan: Function;
-  readonly wallet_scan_withdraw: Function;
-  readonly wallet_scan_refund: Function;
-  readonly socket_connect: Function;
+
+  readonly wallet_generate: Function; // service
+  readonly wallet_scan: Function; // cron job
+  readonly wallet_scan_withdraw: Function; // cron job
+  readonly wallet_scan_refund: Function; // cron job
+  readonly socket_connect: Function; // socket init
 }
 
 export default interface config_i {
@@ -39,7 +43,8 @@ export default interface config_i {
   readonly ENV_URL_API: string;
   readonly ENV_URL_UI: string;
   readonly ENV_URL_UI_LOCAL: string;
-
+  readonly ENV_API_KEY_CAPTCHA: string;
+  readonly ENV_API_KEY_EXCHANGE: string;
   readonly ENV_API_KEY_GARANTI: string;
   readonly ENV_API_KEY_GARANTI_SWITCH: string;
   readonly ENV_API_KEY_GARANTI_SWITCH_PASSWORD: string;
@@ -48,13 +53,8 @@ export default interface config_i {
   readonly ENV_API_KEY_GARANTI_USER: string;
   readonly ENV_API_KEY_GARANTI_PASSWORD: string;
   readonly ENV_API_KEY_GARANTI_STORE: string;
-
-  readonly ENV_API_KEY_EXCHANGE: string;
-
   readonly ENV_API_KEY_HELIUS: string;
   readonly ENV_API_KEY_INFURA: string;
-
-  readonly ENV_API_KEY_CAPTCHA: string;
 
   readonly endpoint_static_root: string;
   readonly endpoint_static_images_id: string;

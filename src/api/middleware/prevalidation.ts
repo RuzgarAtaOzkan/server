@@ -19,28 +19,47 @@ export async function validate_user(
   reply: FastifyReply,
   options: options_i,
 ): Promise<Document | null> {
-  const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
+  // session id
+  const sid: string = request.cookies[config.ENV_COOKIE_NAME];
   const user_agent: string = request.headers['user-agent'];
-
-  if (sid === undefined) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
 
   if (typeof sid !== config.type_string) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (typeof user_agent !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
+
   if (sid.length > 128) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (user_agent.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
+
   if (validator.isAlphanumeric(sid) === false) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
+
+  if (
+    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
+  ) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
 
   const session: redis_session_i | null = JSON.parse(
     await options.redis.GET('session:' + sid),
@@ -56,22 +75,7 @@ export async function validate_user(
     return null;
   }
 
-  if (typeof user_agent !== config.type_string) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
-
-  if (user_agent.length > 128) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
-
-  if (
-    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
-  ) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
+  // ---
 
   const user: Document | null = await options.db.users.findOne({
     _id: ObjectId.createFromHexString(session.user_id),
@@ -92,28 +96,46 @@ export async function validate_admin(
   reply: FastifyReply,
   options: options_i,
 ): Promise<Document | null> {
-  const sid: string | undefined = request.cookies[config.ENV_COOKIE_NAME];
+  const sid: string = request.cookies[config.ENV_COOKIE_NAME];
   const user_agent: string = request.headers['user-agent'];
-
-  if (sid === undefined) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
 
   if (typeof sid !== config.type_string) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (typeof user_agent !== config.type_string) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
+
   if (sid.length > 128) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
 
+  if (user_agent.length > 128) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
+
   if (validator.isAlphanumeric(sid) === false) {
     reply.status(401).send('ERR_UNAUTHORIZED');
     return null;
   }
+
+  if (
+    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
+  ) {
+    reply.status(401).send('ERR_UNAUTHORIZED');
+    return null;
+  }
+
+  // ---
 
   const session: redis_session_i | null = JSON.parse(
     await options.redis.GET('session:' + sid),
@@ -129,22 +151,7 @@ export async function validate_admin(
     return null;
   }
 
-  if (typeof user_agent !== config.type_string) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
-
-  if (user_agent.length > 128) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
-
-  if (
-    /^[ \/\-\[\]!#$%&'*+.^`|~=?{}:;_a-zA-Z0-9]*$/.test(user_agent) === false
-  ) {
-    reply.status(401).send('ERR_UNAUTHORIZED');
-    return null;
-  }
+  // ---
 
   const user: Document | null = await options.db.users.findOne({
     _id: ObjectId.createFromHexString(session.user_id),

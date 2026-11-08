@@ -1,29 +1,11 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-
 // INTERFACES
-import {
-  DeleteResult,
-  Document,
-  InsertOneResult,
-  ObjectId,
-  UpdateResult,
-} from 'mongodb';
+import { Document, ObjectId, UpdateResult } from 'mongodb';
 import { options_i } from 'interfaces/common';
 
-// CONFIG
-import config from '../config';
-
-// UTILS
-import {
-  order_create_doc,
-  order_generate_delivery_code,
-  order_validator_init,
-} from '../utils/services';
-import { random } from '../utils/common';
+// UTILS/SERVICES
+import { order_validator_init } from '../utils/services';
 
 class service_order_init {
   private readonly options: options_i;

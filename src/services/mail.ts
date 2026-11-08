@@ -15,7 +15,7 @@ import {
 // CONFIG
 import config from '../config';
 
-// UTILS
+// UTILS/SERVICES
 import {
   mail_validator_init,
   mail_generate_html,

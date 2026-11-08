@@ -17,10 +17,14 @@ function bind_coupon_routes(
   services: services_i,
   options: options_i,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
+    // #title: GET PROFILE
+    // #state: Public
+    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_coupons,
+      url: config.endpoint_coupons,
       handler: async function (request: any, reply: any) {
         const credentials: any = { code: request.query.code };
 

@@ -19,8 +19,8 @@ import load_fastify from './fastify';
 export async function init(args: string = ''): Promise<void> {
   // global pointer* object of the system for dependency injections, you will carry that object throughout the whole program
   const options: options_i = {
-    db: null,
-    redis: null,
+    db: null, // MongoClient instance
+    redis: null, // Redis client instance
     sockets: [], // blockchain client sockets
   };
 
@@ -51,7 +51,7 @@ export async function init(args: string = ''): Promise<void> {
     `[  \x1b[32mOK\x1b[0m  ] \x1b[1mFastify server configured and initialized (PORT: \x1b[38;2;255;165;0m${config.ENV_PORT}\x1b[0m)`,
   );
 
-  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart server.service, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
+  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart server, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
 
   process.on('SIGTERM', async function () {
     // wait for the users to finish their requests (db writes, other async)

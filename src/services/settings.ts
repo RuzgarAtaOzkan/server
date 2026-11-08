@@ -3,9 +3,6 @@
 // INTERFACES
 import { options_i } from 'interfaces/common';
 
-// CONFIG
-import config from '../config';
-
 // UTILS
 import { settings_validator_init } from '../utils/services';
 

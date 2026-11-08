@@ -59,7 +59,7 @@ const model: model_i = {
       bsonType: config.type_string, // buyukcekmece
     },
     address: {
-      bsonType: config.type_string, // Sinanoba Mahallesi, Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
+      bsonType: config.type_string, // Sinanoba Mahallesi, Ibrahimzade caddesi
     },
     zip: {
       bsonType: config.type_number, // 34535

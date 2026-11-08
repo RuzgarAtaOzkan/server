@@ -1,19 +1,11 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-
 // INTERFACES
-import { Document, InsertOneResult, ObjectId } from 'mongodb';
-
-// CONFIG
-import config from '../config';
-
-// UTILS
-import { coupon_create_doc, coupon_validator_init } from '../utils/services';
+import { Document } from 'mongodb';
 import { options_i } from 'interfaces/common';
-import UTILS_COMMON from '../utils/common';
+
+// UTILS/SERVICES
+import { coupon_validator_init } from '../utils/services';
 
 class service_coupon_init {
   private readonly options: options_i;

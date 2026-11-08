@@ -64,45 +64,62 @@ export function str_remove_space(source: string): string {
   return result;
 }
 
-// check if a string contains a duplicate block of piece and count it
-// args: "banana", "ana", true ==> return value: 1
+// alias function for str_remove_space()
+// removes unneccessary spaces in a string, useful for user based inputs such as name, address, etc.
+// "   test   1   " => "test 1"
+export function strrmspc(source: string): string {
+  return str_remove_space(source);
+}
+
+// check if a string contains a duplicate block of string piece and count it
+// args: ("banana", "ana", true) => 0
 export function strhasdup(
   source: string,
   block: string,
   cc: boolean = false, // continue counting
 ): number {
   if (cc) {
-    let result: number = 0;
+    let count: number = 0;
 
-    for (let i: number = 0; i < source.length; i++) {
+    for (
+      // jump to the end of the first block index to avoid redundancy
+      let i: number = source.indexOf(block) + block.length;
+      i < source.length;
+      i++
+    ) {
       const index: number = source.indexOf(block, i);
 
       if (index === -1) {
         continue;
       }
 
-      result++;
-      i = index - 1 + block.length; // jump to that index to avoid duplicate count
+      count++;
+
+      // "testing the string"
+      i = index + block.length - 1; // jump to that index to avoid duplicate count
     }
 
-    return result;
+    return count;
   }
 
-  const findex: number = source.indexOf(block);
+  // first index of the block string
+  const index: number = source.indexOf(block);
 
-  if (findex === -1) {
+  if (index === -1) {
     return 0;
   }
 
-  const sindex: number = source.indexOf(block, findex + 1);
+  // the first index after the block string
+  const after: number = source.indexOf(block, index + block.length);
 
-  if (sindex === -1) {
+  if (after === -1) {
     return 0;
   }
 
   return 1;
 }
 
+// length param should be an even number for bytes to work properly
 export function random(length: number = 32, type: string = 'hex'): string {
   switch (type) {
     case 'hex':
@@ -323,6 +340,7 @@ export default {
   sleep,
   freeze,
   str_remove_space,
+  strrmspc,
   strhasdup,
   random,
   add_commas,

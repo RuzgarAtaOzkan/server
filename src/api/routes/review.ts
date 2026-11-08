@@ -16,10 +16,11 @@ function bind_review_routes(
   services: services_i,
   options: options_i,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_reviews,
+      url: config.endpoint_reviews,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -41,7 +42,7 @@ function bind_review_routes(
     },
     {
       method: 'PATCH',
-      url: '/v1' + config.endpoint_reviews,
+      url: config.endpoint_reviews,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -64,7 +65,7 @@ function bind_review_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_reviews,
+      url: config.endpoint_reviews,
       preValidation: async function (request: any, reply: any): Promise<void> {
         // await prevalidation.validate_user(request, reply, options);
       },

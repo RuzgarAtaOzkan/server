@@ -1,25 +1,23 @@
 'use strict';
 
 // INTERFACES
-import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { options_i } from 'interfaces/common';
 import { services_i } from 'interfaces/api';
 
-// API > MIDDLEWARE
-
 // CONFIG
 import config from '../../config';
-
-// UTILS
-import { sleep } from '../../utils/common';
 
 function bind_static_routes(
   server: FastifyInstance,
   services: services_i,
   options: options_i,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
+    // #title: GET PROFILE
+    // #state: Public
+    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
       url: config.endpoint_static_root,

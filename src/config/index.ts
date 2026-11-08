@@ -3,9 +3,7 @@
 // INTERFACES
 import config_i from 'interfaces/config';
 
-// UTILS
-import { freeze, random, sysgmt } from '../utils/common';
-
+// UTILS/LOADERS
 import {
   socket_wallet_connect_solana,
   socket_wallet_connect_ethereum,
@@ -21,11 +19,15 @@ import {
   cron_wallet_scan_refund_bitcoin,
 } from '../utils/loaders';
 
+// UTILS/SERVICES
 import {
   wallet_generate_solana,
   wallet_generate_ethereum,
   wallet_generate_bitcoin,
 } from '../utils/services';
+
+// UTILS/COMMON
+import { freeze, random, sysgmt } from '../utils/common';
 
 // COMMON CONFIGURATION VALUES OF THE SYSTEM
 const config: config_i = {
@@ -52,6 +54,10 @@ const config: config_i = {
   ENV_URL_UI: process.env.URL_UI || 'https://server.com',
   ENV_URL_UI_LOCAL: process.env.URL_UI_LOCAL || 'http://127.0.0.1:3000',
 
+  ENV_API_KEY_CAPTCHA: process.env.API_KEY_CAPTCHA || '',
+
+  ENV_API_KEY_EXCHANGE: process.env.API_KEY_EXCHANGE || '',
+
   ENV_API_KEY_GARANTI: process.env.API_KEY_GARANTI || '',
   ENV_API_KEY_GARANTI_SWITCH: process.env.API_KEY_GARANTI_SWITCH || '',
   ENV_API_KEY_GARANTI_SWITCH_PASSWORD:
@@ -62,12 +68,8 @@ const config: config_i = {
   ENV_API_KEY_GARANTI_PASSWORD: process.env.API_KEY_GARANTI_PASSWORD || '',
   ENV_API_KEY_GARANTI_STORE: process.env.API_KEY_GARANTI_STORE || '',
 
-  ENV_API_KEY_EXCHANGE: process.env.API_KEY_EXCHANGE || '',
-
   ENV_API_KEY_HELIUS: process.env.API_KEY_HELIUS || '',
   ENV_API_KEY_INFURA: process.env.API_KEY_INFURA || '',
-
-  ENV_API_KEY_CAPTCHA: process.env.API_KEY_CAPTCHA || '',
 
   // ENDPOINTS
 

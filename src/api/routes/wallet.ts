@@ -1,12 +1,10 @@
 'use strict';
 
 // INTERFACES
-import { DeleteResult, Document, UpdateResult } from 'mongodb';
+import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
-
-// API > MIDDLEWARE
-import prevalidation from '../middleware/prevalidation';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../../config';
@@ -14,16 +12,12 @@ import config from '../../config';
 function bind_wallet_routes(
   server: FastifyInstance,
   services: services_i,
-  options: any,
+  options: options_i,
 ): FastifyInstance {
-  // @ Route Options Area
   const routes = [
-    // #title: GET PROFILE
-    // #state: Public
-    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_wallets,
+      url: config.endpoint_wallets,
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.query };
 
@@ -39,12 +33,12 @@ function bind_wallet_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_wallets,
+      url: config.endpoint_wallets,
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.body, ip: request.ip };
 
         try {
-          const wallet: Document | void =
+          const wallet: Document =
             await services.wallet.create_wallet(credentials);
 
           reply.send(wallet);

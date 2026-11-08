@@ -1,26 +1,13 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-import crypto from 'node:crypto';
-
 // INTERFACES
-import {
-  DeleteResult,
-  Document,
-  InsertOneResult,
-  ObjectId,
-  UpdateResult,
-} from 'mongodb';
+import { DeleteResult, Document, InsertOneResult, UpdateResult } from 'mongodb';
 import { options_i } from 'interfaces/common';
 
-// CONFIG
-import config from '../config';
-
-// UTILS
+// UTILS/SERVICES
 import { card_create_doc, card_validator_init } from '../utils/services';
 
-class service_order_init {
+class service_card_init {
   private readonly options: options_i;
   private readonly validator: card_validator_init;
 
@@ -90,4 +77,4 @@ class service_order_init {
   }
 }
 
-export default service_order_init;
+export default service_card_init;

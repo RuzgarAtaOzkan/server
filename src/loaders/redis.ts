@@ -1,9 +1,10 @@
 'use strict';
 
 // MODULES
-import { createClient, RedisClientType } from 'redis';
+import { createClient } from 'redis';
 
 // INTERFACES
+import { RedisClientType } from 'redis';
 import { options_i } from 'interfaces/common';
 import { redis_settings_i, redis_session_i } from 'interfaces/loaders';
 

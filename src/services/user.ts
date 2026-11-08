@@ -6,8 +6,7 @@ import crypto from 'node:crypto';
 
 // INTERFACES
 import { Document, InsertOneResult, UpdateResult, ObjectId } from 'mongodb';
-import { options_i } from 'interfaces/common';
-import { redis_session_i } from 'interfaces/loaders';
+import { options_i, redis_session_i } from 'interfaces/loaders';
 import {
   user_email_change_credentials_i,
   user_email_change_result_i,
@@ -27,7 +26,7 @@ import { user_profile_i } from 'interfaces/utils';
 // CONFIG
 import config from '../config';
 
-// UTILS
+// UTILS/SERVICES
 import {
   user_validator_init,
   user_return_profile,
@@ -36,6 +35,8 @@ import {
   user_create_session,
   user_generate_password_reset_code,
 } from '../utils/services';
+
+// UTILS/COMMON
 import { random } from '../utils/common';
 
 class service_user_init {
@@ -397,11 +398,10 @@ class service_user_init {
   }
 
   async signout(credentials: user_signout_credentials_i): Promise<number> {
-    // await this.validator.signout(credentials);
+    await this.validator.signout(credentials);
 
-    const result: number = await this.options.redis.HDEL(
-      'sessions',
-      credentials.sid,
+    const result: number = await this.options.redis.DEL(
+      'session:' + credentials.sid,
     );
 
     return result;

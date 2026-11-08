@@ -1,13 +1,6 @@
 'use strict';
 
-// MODULES
-import fs from 'node:fs';
-
-// MIDDLEWARE
-import prevalidation from '../middleware/prevalidation';
-
 // INTERFACES
-import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
 
@@ -26,7 +19,7 @@ function bind_settings_routes(
     // #desc: check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_settings,
+      url: config.endpoint_settings,
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ip: request.ip,
@@ -43,7 +36,7 @@ function bind_settings_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_settings_cities,
+      url: config.endpoint_settings_cities,
       handler: async function (request: any, reply: any) {
         const credentials: any = {};
 
@@ -58,7 +51,7 @@ function bind_settings_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_settings_districts,
+      url: config.endpoint_settings_districts,
       handler: async function (request: any, reply: any) {
         const credentials: any = { city: request.query.city };
 
@@ -73,7 +66,7 @@ function bind_settings_routes(
     },
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_settings_neighbourhoods,
+      url: config.endpoint_settings_neighbourhoods,
       handler: async function (request: any, reply: any) {
         const credentials: any = { district: request.query.district };
 

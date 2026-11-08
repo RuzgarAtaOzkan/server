@@ -1,6 +1,7 @@
 'use strict';
 
 // INTERFACES
+import { Document } from 'mongodb';
 import { FastifyInstance, RouteOptions } from 'fastify';
 import { services_i } from 'interfaces/api';
 import { options_i } from 'interfaces/common';
@@ -10,7 +11,6 @@ import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
-import { Document } from 'mongodb';
 
 function bind_admin_routes(
   server: FastifyInstance,
@@ -21,7 +21,7 @@ function bind_admin_routes(
     // MAIL
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_admin_mail_send,
+      url: config.endpoint_admin_mail_send,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -41,7 +41,7 @@ function bind_admin_routes(
     // SETTINGS
     {
       method: 'PATCH',
-      url: '/v1' + config.endpoint_admin_settings,
+      url: config.endpoint_admin_settings,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -61,7 +61,7 @@ function bind_admin_routes(
     // PRODUCTS
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_admin_products,
+      url: config.endpoint_admin_products,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -85,7 +85,7 @@ function bind_admin_routes(
     },
     {
       method: 'PATCH',
-      url: '/v1' + config.endpoint_admin_products,
+      url: config.endpoint_admin_products,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -107,7 +107,7 @@ function bind_admin_routes(
     },
     {
       method: 'DELETE',
-      url: '/v1' + config.endpoint_admin_products,
+      url: config.endpoint_admin_products,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -128,7 +128,7 @@ function bind_admin_routes(
     // WALLETS
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_admin_wallets,
+      url: config.endpoint_admin_wallets,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -149,7 +149,7 @@ function bind_admin_routes(
     // COUPONS
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_admin_coupons,
+      url: config.endpoint_admin_coupons,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },
@@ -168,7 +168,7 @@ function bind_admin_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_admin_coupons,
+      url: config.endpoint_admin_coupons,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_admin(request, reply, options);
       },

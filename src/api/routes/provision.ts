@@ -19,7 +19,7 @@ function bind_provision_routes(
   const routes = [
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_provisions,
+      url: config.endpoint_provisions,
       handler: async function (request: any, reply: any) {
         const credentials: any = { ...request.query };
 
@@ -35,7 +35,7 @@ function bind_provision_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_provisions,
+      url: config.endpoint_provisions,
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,
@@ -54,7 +54,7 @@ function bind_provision_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_provisions_payments,
+      url: config.endpoint_provisions_payments,
       handler: async function (request: any, reply: any) {
         const credentials: any = {
           ...request.body,

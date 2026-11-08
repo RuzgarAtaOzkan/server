@@ -1,7 +1,7 @@
 'use strict';
 
 // INTERFACES
-import { DeleteResult, Document } from 'mongodb';
+import { Document } from 'mongodb';
 import { FastifyInstance } from 'fastify';
 import { services_i } from 'interfaces/api';
 
@@ -16,10 +16,14 @@ function bind_card_routes(
   services: services_i,
   options: any,
 ): FastifyInstance {
+  // @ Route Options Area
   const routes = [
+    // #title: GET PROFILE
+    // #state: Public
+    // #desc: Check if request has session and user, response: IProfile | null
     {
       method: 'GET',
-      url: '/v1' + config.endpoint_cards,
+      url: config.endpoint_cards,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -38,7 +42,7 @@ function bind_card_routes(
     },
     {
       method: 'POST',
-      url: '/v1' + config.endpoint_cards,
+      url: config.endpoint_cards,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -56,7 +60,7 @@ function bind_card_routes(
     },
     {
       method: 'PATCH',
-      url: '/v1' + config.endpoint_cards,
+      url: config.endpoint_cards,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
@@ -74,7 +78,7 @@ function bind_card_routes(
     },
     {
       method: 'DELETE',
-      url: '/v1' + config.endpoint_cards,
+      url: config.endpoint_cards,
       preValidation: async function (request: any, reply: any): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },

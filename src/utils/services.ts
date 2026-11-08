@@ -18,6 +18,7 @@ import {
   user_password_reset_credentials_i,
   user_patch_profile_credentials_i,
   user_signin_credentials_i,
+  user_signout_credentials_i,
   user_signup_credentials_i,
 } from 'interfaces/services';
 
@@ -261,6 +262,10 @@ export class common_validator_init {
         throw 'ERR_MISSING_PRODUCT';
       }
 
+      if (basket[i].quantity > product.quantity) {
+        throw 'ERR_INVALID_QUANTITY';
+      }
+
       let dup: number = 0;
       for (let j: number = 0; j < basket.length; j++) {
         if (basket[j]._id.toLowerCase() === basket[i]._id.toLowerCase()) {
@@ -271,12 +276,15 @@ export class common_validator_init {
         throw 'ERR_DUPLICATE_PRODUCT';
       }
 
-      if (basket[i].quantity > product.quantity) {
-        throw 'ERR_INVALID_QUANTITY';
-      }
+      // ignore all other properties user has sent
+      basket[i] = {
+        _id: basket[i]._id.toLowerCase(), // lowered product id
+        quantity: basket[i].quantity, // user quantity
+        price: basket[i].quantity * product.price, // calculated price
+      };
 
-      basket[i]._id = basket[i]._id.toLowerCase();
-      basket[i].price = product.price * basket[i].quantity;
+      // basket[i]._id = basket[i]._id.toLowerCase();
+      // basket[i].price = product.price * basket[i].quantity;
     }
   }
 }
@@ -826,6 +834,20 @@ export class user_validator_init {
 
     return user;
   }
+
+  async signout(credentials: user_signout_credentials_i): Promise<void> {
+    if (typeof credentials.sid !== config.type_string) {
+      throw 'ERR_INVALID_SID';
+    }
+
+    if (credentials.sid.length > 128) {
+      throw 'ERR_LONG_SID';
+    }
+
+    if (validator.isAlphanumeric(credentials.sid) === false) {
+      throw 'ERR_INVALID_SID';
+    }
+  }
 }
 
 export async function user_create_session(
@@ -836,7 +858,7 @@ export async function user_create_session(
 
   const session: string = JSON.stringify(payload);
 
-  // 32 bytes strong random hexadecimal string
+  // session id: 32 bytes strong random hexadecimal string
   let sid: string = random();
 
   // set expiration for the individual session id (sid) in seconds
