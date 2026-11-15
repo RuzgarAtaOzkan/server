@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { UpdateResult } from 'mongodb';
-import { FastifyInstance, FastifyReply } from 'fastify';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { services_i } from 'interfaces/api';
 import {
   user_signup_credentials_i,
@@ -17,6 +17,8 @@ import {
   user_password_change_credentials_i,
   user_signout_credentials_i,
   user_password_reset_credentials_i,
+  user_get_sessions_credentials_i,
+  user_delete_session_credentials_i,
 } from 'interfaces/services';
 import { user_profile_i } from 'interfaces/utils';
 import { options_i } from 'interfaces/common';
@@ -26,6 +28,7 @@ import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
+import { redis_session_i } from 'interfaces/loaders';
 
 function bind_user_routes(
   server: FastifyInstance,
@@ -38,6 +41,7 @@ function bind_user_routes(
       url: config.endpoint_user_signup,
       handler: async function (request: any, reply: FastifyReply) {
         const credentials: user_signup_credentials_i = {
+          user_agent: request.headers['user-agent'],
           name: request.body.name,
           username: request.body.username,
           email: request.body.email,
@@ -78,6 +82,7 @@ function bind_user_routes(
       url: config.endpoint_user_signin,
       handler: async function (request: any, reply: any) {
         const credentials: user_signin_credentials_i = {
+          user_agent: request.headers['user-agent'],
           uid: request.body.uid,
           password: request.body.password,
           remember: request.body.remember,
@@ -149,9 +154,61 @@ function bind_user_routes(
       },
     },
     {
+      method: 'GET',
+      url: config.endpoint_user_sessions,
+      preValidation: async function (
+        request: FastifyRequest,
+        reply: FastifyReply,
+      ): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
+      },
+      handler: async function (request: any, reply: any) {
+        const credentials: user_get_sessions_credentials_i = {
+          user: request.user,
+        };
+
+        try {
+          const result: redis_session_i[] =
+            await services.user.get_sessions(credentials);
+
+          reply.send(result);
+        } catch (err: any) {
+          reply.status(422).send(err);
+        }
+      },
+    },
+    {
+      method: 'DELETE',
+      url: config.endpoint_user_sessions,
+      preValidation: async function (
+        request: FastifyRequest,
+        reply: FastifyReply,
+      ): Promise<void> {
+        await prevalidation.validate_user(request, reply, options);
+      },
+      handler: async function (request: any, reply: any) {
+        const credentials: user_delete_session_credentials_i = {
+          sid: request.query.sid, // target sid for deletion, not the user' current sid
+          user: request.user,
+        };
+
+        try {
+          const result: number =
+            await services.user.delete_session(credentials);
+
+          reply.send(result);
+        } catch (err: any) {
+          reply.status(422).send(err);
+        }
+      },
+    },
+    {
       method: 'PATCH',
       url: config.endpoint_user_profile,
-      preValidation: async function (request: any, reply: any): Promise<void> {
+      preValidation: async function (
+        request: FastifyRequest,
+        reply: FastifyReply,
+      ): Promise<void> {
         await prevalidation.validate_user(request, reply, options);
       },
       handler: async function (request: any, reply: any) {

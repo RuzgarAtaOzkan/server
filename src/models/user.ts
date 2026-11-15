@@ -12,8 +12,26 @@ const model: model_i = {
     // [{ keys...}, { values...}]
     [{ username: 1 }, { unique: true }],
     [{ email: 1 }, { unique: true }],
-    [{ email_verification_code: 1 }, { unique: true }],
-    [{ password_reset_code: 1 }, { unique: true }],
+    [
+      { email_verification_code: 1 },
+      {
+        unique: true,
+        // because of MongoDB' bad design choice, mongodb engine thinks a missing field on a document collides with another document' missing field because they share the same value which is NULL, we have to manually tell the engine to only compare string fields from different documents against collisions
+        partialFilterExpression: {
+          email_verification_code: { $type: config.type_string },
+        },
+      },
+    ],
+    [
+      { password_reset_code: 1 },
+      {
+        unique: true,
+        // same thing here (partialFilterExpression)
+        partialFilterExpression: {
+          password_reset_code: { $type: config.type_string },
+        },
+      },
+    ],
     [{ ref_code: 1 }, { unique: true }],
   ],
   properties: {
@@ -59,7 +77,7 @@ const model: model_i = {
       bsonType: config.type_string, // buyukcekmece
     },
     address: {
-      bsonType: config.type_string, // Sinanoba Mahallesi, Ibrahimzade caddesi
+      bsonType: config.type_string, // Sinanoba Mahallesi, Ibrahimzade caddesi, Sahiltepe Villalari, No: 2
     },
     zip: {
       bsonType: config.type_number, // 34535
@@ -76,7 +94,7 @@ const model: model_i = {
       bsonType: config.type_string,
     },
     ref_from: {
-      bsonType: [config.type_object_id, config.type_null],
+      bsonType: config.type_object_id,
     },
 
     created_at: {

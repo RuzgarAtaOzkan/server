@@ -1,3 +1,6 @@
+// MODULES
+import { Document } from 'mongodb';
+
 // SERVICES
 export interface user_profile_i {
   readonly _id: string;
@@ -9,7 +12,7 @@ export interface user_profile_i {
   readonly role: string;
   readonly img: string;
   readonly ref_code: string;
-  readonly ref_from: string;
+  readonly ref_from: null | string;
   readonly city: string;
   readonly district: string;
   readonly address: string;

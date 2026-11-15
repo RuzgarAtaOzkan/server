@@ -43,12 +43,15 @@ class service_mail_init {
       },
     });
 
-    this.transporter.verify(function (err: any, success: any) {
+    /**
+     * 
+     *     this.transporter.verify(function (err: any, success: any) {
       if (err && config.ENV_API_KEY_CAPTCHA) {
         // TODO: crash the process if SMTP verification fails on production
         throw err;
       }
     });
+     */
   }
 
   async send_verification_link(

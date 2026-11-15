@@ -136,10 +136,15 @@ export function isBytes(a: unknown): a is Uint8Array {
   );
 }
 
+// Shared error-message prefix builder. Only called on throw paths, so assert
+// success paths never pay for the string concatenation.
+const atitle = (title: string): string => (title ? `"${title}" ` : '');
+
 /**
  * Asserts something is a non-negative integer.
  * @param n - number to validate
  * @param title - label included in thrown errors
+ * @returns The validated number.
  * @throws On wrong argument types. {@link TypeError}
  * @throws On wrong argument ranges or values. {@link RangeError}
  * @example
@@ -148,15 +153,32 @@ export function isBytes(a: unknown): a is Uint8Array {
  * anumber(32, 'length');
  * ```
  */
-export function anumber(n: number, title: string = ''): void {
-  if (typeof n !== 'number') {
-    const prefix = title && `"${title}" `;
-    throw new TypeError(`${prefix}expected number, got ${typeof n}`);
-  }
-  if (!Number.isSafeInteger(n) || n < 0) {
-    const prefix = title && `"${title}" `;
-    throw new RangeError(`${prefix}expected integer >= 0, got ${n}`);
-  }
+export function anumber(n: number, title: string = ''): number {
+  if (typeof n !== 'number')
+    throw new TypeError(atitle(title) + 'expected number, got ' + typeof n);
+  if (!Number.isSafeInteger(n) || n < 0)
+    throw new RangeError(atitle(title) + 'expected integer >= 0, got ' + n);
+  return n;
+}
+
+/**
+ * Asserts something is a boolean.
+ * @param value - value to validate
+ * @param title - label included in thrown errors
+ * @returns The validated boolean.
+ * @throws On wrong argument types. {@link TypeError}
+ * @example
+ * Validate a boolean option.
+ * ```ts
+ * abool(true, 'enableXOF');
+ * ```
+ */
+export function abool(value: boolean, title: string = ''): boolean {
+  if (typeof value !== 'boolean')
+    throw new TypeError(
+      atitle(title) + 'expected boolean, got type=' + typeof value,
+    );
+  return value;
 }
 
 /**
@@ -178,18 +200,19 @@ export function abytes(
   length?: number,
   title: string = '',
 ): TRet<Uint8Array> {
+  // Success path first: this runs at the start of every update() / digestInto(), and the
+  // common `abytes(data)` form must not pay for length handling it does not use.
+  if (isBytes(value) && (length === undefined || value.length === length))
+    return value as TRet<Uint8Array>;
+  // Error path: recompute freely to build the exact message.
+  if (length !== undefined) anumber(length, 'length');
   const bytes = isBytes(value);
-  const len = value?.length;
-  const needsLen = length !== undefined;
-  if (!bytes || (needsLen && len !== length)) {
-    const prefix = title && `"${title}" `;
-    const ofLen = needsLen ? ` of length ${length}` : '';
-    const got = bytes ? `length=${len}` : `type=${typeof value}`;
-    const message = prefix + 'expected Uint8Array' + ofLen + ', got ' + got;
-    if (!bytes) throw new TypeError(message);
-    throw new RangeError(message);
-  }
-  return value as TRet<Uint8Array>;
+  const ofLen = length !== undefined ? ` of length ${length}` : '';
+  const got = bytes ? `length=${value.length}` : `type=${typeof value}`;
+  const message =
+    atitle(title) + 'expected Uint8Array' + ofLen + ', got ' + got;
+  if (!bytes) throw new TypeError(message);
+  throw new RangeError(message);
 }
 
 /**
@@ -226,14 +249,34 @@ export function copyBytes(bytes: TArg<Uint8Array>): TRet<Uint8Array> {
  */
 export function ahash(h: TArg<CHash>): void {
   if (typeof h !== 'function' || typeof h.create !== 'function')
-    throw new TypeError('Hash must wrapped by utils.createHasher');
+    throw new TypeError('expected hash wrapped by utils.createHasher');
   anumber(h.outputLen);
   anumber(h.blockLen);
   // HMAC and KDF callers treat these as real byte lengths; allowing zero lets fake wrappers pass
   // validation and can produce empty outputs instead of failing fast.
-  if (h.outputLen < 1) throw new Error('"outputLen" must be >= 1');
-  if (h.blockLen < 1) throw new Error('"blockLen" must be >= 1');
+  if (h.outputLen < 1 || h.blockLen < 1)
+    throw new Error('hash blockLen / outputLen must be >= 1');
 }
+
+const aobject = (value: Record<string, any>, label: string) => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    throw new TypeError(
+      (label === 'object' ? '' : `"${label}" `) +
+        'expected object, got type=' +
+        typeof value,
+    );
+};
+
+const aopts = (value: Record<string, any>, label: string) => {
+  aobject(value, label);
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null)
+    throw new TypeError(`"${label}" expected plain object`);
+  // Object.assign() treats an own "__proto__" source key as a write to the target's legacy
+  // prototype setter. Reject it before merging so inherited option values cannot be injected.
+  if (Object.hasOwn(value, '__proto__'))
+    throw new TypeError(`"${label}.__proto__" is not allowed`);
+};
 
 /**
  * Asserts a hash instance has not been destroyed or finished.
@@ -250,9 +293,11 @@ export function ahash(h: TArg<CHash>): void {
  * ```
  */
 export function aexists(instance: any, checkFinished = true): void {
-  if (instance.destroyed) throw new Error('Hash instance has been destroyed');
+  // Runs on every update()/digestInto(); the flags are library-owned booleans, so only their
+  // truthiness is checked - re-validating their type per call was pure hot-path overhead.
+  if (instance.destroyed) throw new Error('hash was destroyed');
   if (checkFinished && instance.finished)
-    throw new Error('Hash#digest() has already been called');
+    throw new Error('digest() was already called');
 }
 
 /**
@@ -272,16 +317,16 @@ export function aexists(instance: any, checkFinished = true): void {
  * ```
  */
 export function aoutput(out: any, instance: any): void {
-  abytes(out, undefined, 'digestInto() output');
+  abytes(out, undefined, 'output');
+  // `outputLen` is a library-owned readonly number; the negated comparison keeps failing fast
+  // when it is missing/NaN (comparisons with undefined/NaN are false) without an anumber() call.
   const min = instance.outputLen;
-  if (out.length < min) {
-    throw new RangeError(
-      '"digestInto() output" expected to be of length >=' + min,
-    );
+  if (!(out.length >= min)) {
+    throw new RangeError('"output" expected length >= ' + min);
   }
 }
 
-/** Generic type encompassing 8/16/32-byte array views, but not 64-bit variants. */
+/** Generic type encompassing 8/16/32-bit typed arrays, but not 64-bit. */
 // prettier-ignore
 export type TypedArray = Int8Array | Uint8ClampedArray | Uint8Array |
   Uint16Array | Int16Array | Uint32Array | Int32Array;
@@ -487,13 +532,14 @@ export function bytesToHex(bytes: TArg<Uint8Array>): string {
   return hex;
 }
 
-// We use optimized technique to convert hex string to byte array
-const asciis = { _0: 48, _9: 57, A: 65, F: 70, a: 97, f: 102 } as const;
+// Strict ASCII nibble parser: non-ASCII hex lookalikes are rejected as undefined.
+// ASCII codes: '0'..'9' = 48..57, 'A'..'F' = 65..70, 'a'..'f' = 97..102.
+// prettier-ignore
 function asciiToBase16(ch: number): number | undefined {
-  if (ch >= asciis._0 && ch <= asciis._9) return ch - asciis._0; // '2' => 50-48
-  if (ch >= asciis.A && ch <= asciis.F) return ch - (asciis.A - 10); // 'B' => 66-(65-10)
-  if (ch >= asciis.a && ch <= asciis.f) return ch - (asciis.a - 10); // 'b' => 98-(97-10)
-  return;
+  return ch >= 48 && ch <= 57 ? ch - 48 // '2' => 50-48
+  : ch >= 65 && ch <= 70 ? ch - (65 - 10) // 'B' => 66-(65-10)
+  : ch >= 97 && ch <= 102 ? ch - (97 - 10) // 'b' => 98-(97-10)
+  : undefined;
 }
 
 /**
@@ -527,8 +573,8 @@ export function hexToBytes(hex: string): TRet<Uint8Array> {
     );
   const array = new Uint8Array(al);
   for (let ai = 0, hi = 0; ai < al; ai++, hi += 2) {
-    const n1 = asciiToBase16(hex.charCodeAt(hi));
-    const n2 = asciiToBase16(hex.charCodeAt(hi + 1));
+    const n1 = asciiToBase16(hex.charCodeAt(hi)); // parse first char, multiply it by 16
+    const n2 = asciiToBase16(hex.charCodeAt(hi + 1)); // parse second char
     if (n1 === undefined || n2 === undefined) {
       const char = hex[hi] + hex[hi + 1];
       throw new RangeError(
@@ -538,29 +584,43 @@ export function hexToBytes(hex: string): TRet<Uint8Array> {
           hi,
       );
     }
-    array[ai] = n1 * 16 + n2; // multiply first octet, e.g. 'a3' => 10*16+3 => 160 + 3 => 163
+    array[ai] = n1 * 16 + n2; // example: 'A9' => 10*16 + 9
   }
   return array;
 }
 
 /**
- * There is no setImmediate in browser and setTimeout is slow.
- * This yields to the Promise/microtask scheduler queue, not to timers or the
- * full macrotask event loop.
+ * Yields to the host task scheduler so timers, I/O, and rendering can make progress.
+ * Uses the Web Scheduling API when available or `setTimeout` as a cross-platform fallback.
+ * Host-task yields are much slower than microtasks (roughly 1ms with the timer fallback), so
+ * async loops should use `asyncTick >= 10` to amortize scheduling overhead to about 10% while
+ * still allowing other event-loop work to proceed.
+ * @param onReject - optional cleanup invoked only if the host yield fails
  * @example
  * Yield to the next scheduler tick.
  * ```ts
  * await nextTick();
  * ```
  */
-export const nextTick = async (): Promise<void> => {};
+export function nextTick(onReject?: () => void): Promise<void> {
+  const host = globalThis as any;
+  if (typeof host.scheduler?.yield === 'function') {
+    const promise: Promise<void> = host.scheduler.yield();
+    // Keep the original scheduler rejection; this handler exists only for cleanup.
+    if (onReject) promise.catch(onReject);
+    return promise;
+  }
+  return new Promise((resolve) => host.setTimeout(resolve, 0));
+}
 
 /**
- * Returns control to the Promise/microtask scheduler every `tick`
- * milliseconds to avoid blocking long loops.
+ * Returns control to the host event loop every `tick` milliseconds to avoid blocking long loops.
  * @param iters - number of loop iterations to run
  * @param tick - maximum time slice in milliseconds
  * @param cb - callback executed on each iteration
+ * @param onReject - optional cleanup invoked only if a host yield fails
+ * @throws On wrong argument types. {@link TypeError}
+ * @throws On wrong argument ranges or values. {@link RangeError}
  * @example
  * Run a loop that periodically yields back to the event loop.
  * ```ts
@@ -571,15 +631,22 @@ export async function asyncLoop(
   iters: number,
   tick: number,
   cb: (i: number) => void,
+  onReject?: () => void,
 ): Promise<void> {
+  anumber(iters, 'iters');
+  anumber(tick, 'tick');
+  if (typeof cb !== 'function')
+    throw new TypeError('callback must be a function');
+  // Callback is synchronous by contract; asyncLoop only yields between sync work windows.
   let ts = Date.now();
   for (let i = 0; i < iters; i++) {
     cb(i);
     // Date.now() is not monotonic, so in case if clock goes backwards we return return control too
     const diff = Date.now() - ts;
     if (diff >= 0 && diff < tick) continue;
-    await nextTick();
-    ts += diff;
+    await nextTick(onReject);
+    // Track only synchronous work time; scheduler delay after yielding is outside our budget.
+    ts = Date.now();
   }
 }
 
@@ -601,7 +668,14 @@ declare const TextEncoder: any;
  */
 export function utf8ToBytes(str: string): TRet<Uint8Array> {
   if (typeof str !== 'string') throw new TypeError('string expected');
-  return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
+  const encoded = new TextEncoder().encode(str);
+  try {
+    // Copy into the current realm for Firefox extension contexts. Callers that own the returned
+    // buffer can then wipe it independently of TextEncoder's temporary result.
+    return new Uint8Array(encoded) as TRet<Uint8Array>; // https://bugzil.la/1681809
+  } finally {
+    clean(encoded);
+  }
 }
 
 /** KDFs can accept string or Uint8Array for user convenience. */
@@ -657,10 +731,64 @@ export function concatBytes(...arrays: TArg<Uint8Array[]>): TRet<Uint8Array> {
 
 type EmptyObj = {};
 /**
+ * Validates declared required and optional field types on a plain object.
+ * This walks field schemas and formats detailed errors, so avoid it on hot paths; use direct
+ * one-line guards such as `abytes()`, `abool()`, or `anumber()` instead.
+ * @param object - object to validate
+ * @param fields - map of required field names to expected types
+ * @param optFields - map of optional field names to expected types
+ * @param title - label included in thrown errors
+ * @throws On wrong argument types. {@link TypeError}
+ * @example
+ * Validate required and optional option fields.
+ * ```ts
+ * validateObject({ N: 1024, dkLen: 32 }, { N: 'number' }, { dkLen: 'number' });
+ * ```
+ */
+export const validateObject = (
+  object: Record<string, any>,
+  fields: Record<string, string> = {},
+  optFields: Record<string, string> = {},
+  title = 'object',
+): void => {
+  aobject(object, title);
+  aobject(fields, 'fields');
+  aobject(optFields, 'optFields');
+  type Item = keyof typeof object;
+  function checkField(fieldName: Item, expectedType: string, isOpt: boolean) {
+    const label =
+      title === 'object'
+        ? `param "${String(fieldName)}"`
+        : `"${title}.${String(fieldName)}"`;
+    // Config fields must be explicit own properties. Optional inherited values are rejected too
+    // because callers keep reading the same options object after validation.
+    const val = object[fieldName];
+    // Runtime objects such as Field instances intentionally satisfy required method slots
+    // via their shared prototype.
+    if (
+      !Object.hasOwn(object, fieldName) &&
+      (isOpt ? val !== undefined : expectedType !== 'function')
+    ) {
+      throw new TypeError(`${label} is invalid: expected own property`);
+    }
+    if (isOpt && val === undefined) return;
+    const current = typeof val;
+    if (current !== expectedType || val === null)
+      throw new TypeError(
+        `${label} is invalid: expected ${expectedType}, got ${current}`,
+      );
+  }
+  const iter = (f: typeof fields, isOpt: boolean) =>
+    Object.entries(f).forEach(([k, v]) => checkField(k, v, isOpt));
+  iter(fields, false);
+  iter(optFields, true);
+};
+/**
  * Merges default options and passed options.
  * @param defaults - base option object
  * @param opts - user overrides
- * @returns Merged option object. The merge mutates `defaults` in place.
+ * @param title - label included in thrown override errors
+ * @returns Fresh merged option object with a null prototype.
  * @throws On wrong argument types. {@link TypeError}
  * @example
  * Merge user overrides onto default options.
@@ -671,10 +799,13 @@ type EmptyObj = {};
 export function checkOpts<T1 extends EmptyObj, T2 extends EmptyObj>(
   defaults: T1,
   opts?: T2,
+  title = 'opts',
 ): T1 & T2 {
-  if (opts !== undefined && {}.toString.call(opts) !== '[object Object]')
-    throw new TypeError('options must be object or undefined');
-  const merged = Object.assign(defaults, opts);
+  aopts(defaults as Record<string, any>, 'defaults');
+  if (opts !== undefined) aopts(opts as Record<string, any>, title);
+  // Callers read optional fields directly, so omitted values must not fall through to ambient
+  // Object.prototype pollution (for example a forged `dkLen` changing SHAKE's default output).
+  const merged = Object.assign(Object.create(null), defaults, opts);
   return merged as T1 & T2;
 }
 
@@ -718,21 +849,26 @@ export interface Hash<T> {
   clone(): T;
 }
 
-/** Pseudorandom generator interface. */
+/**
+ * The pseudorandom number generator doesn't wipe current state:
+ * instead, it generates new one based on previous state + entropy.
+ * Not reseed/rekey, since AES CTR DRBG does rekey on each randomBytes,
+ * which is in fact `reseed`, since it changes counter too.
+ */
 export interface PRG {
   /**
-   * Mixes more entropy into the generator state.
-   * @param seed - fresh entropy bytes
-   * @returns Nothing. Implementations update internal state in place.
+   * Mixes fresh entropy into the current generator state.
+   * @param seed - Non-empty entropy bytes to absorb. When omitted, the implementation uses its
+   * system RNG.
    */
-  addEntropy(seed: TArg<Uint8Array>): void;
+  addEntropy(seed?: TArg<Uint8Array>): void;
   /**
-   * Generates pseudorandom output bytes.
-   * @param length - number of bytes to generate
-   * @returns Generated pseudorandom bytes.
+   * Produces a requested number of pseudorandom bytes.
+   * @param bytesLength - Number of bytes to generate.
+   * @returns Random byte array.
    */
-  randomBytes(length: number): TRet<Uint8Array>;
-  /** Wipes generator state and makes the instance unusable. */
+  randomBytes(bytesLength: number): TRet<Uint8Array>;
+  /** Destroys the generator state. */
   clean(): void;
 }
 
@@ -798,6 +934,7 @@ export type CHashXOF<
  *   Wrapper construction eagerly calls `hashCons(undefined)` once to read
  *   `outputLen` / `blockLen`, so constructor side effects happen at module
  *   init time.
+ * @throws On wrong argument types. {@link TypeError}
  * @example
  * Wrap a stateful hash constructor into a callable helper.
  * ```ts
@@ -811,6 +948,11 @@ export function createHasher<T extends Hash<T>, Opts = undefined>(
   hashCons: HasherCons<T, Opts>,
   info: TArg<HashInfo> = {},
 ): TRet<CHash<T, Opts>> {
+  if (typeof hashCons !== 'function')
+    throw new TypeError(
+      '"hashCons" expected function, got type=' + typeof hashCons,
+    );
+  info = checkOpts({}, info, 'info') as HashInfo;
   const hashC: any = (msg: TArg<Uint8Array>, opts?: TArg<Opts>) =>
     hashCons(opts as Opts)
       .update(msg)

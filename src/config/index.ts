@@ -3,7 +3,9 @@
 // INTERFACES
 import config_i from 'interfaces/config';
 
-// UTILS/LOADERS
+// UTILS
+import { freeze, random, sysgmt } from '../utils/common';
+
 import {
   socket_wallet_connect_solana,
   socket_wallet_connect_ethereum,
@@ -19,15 +21,11 @@ import {
   cron_wallet_scan_refund_bitcoin,
 } from '../utils/loaders';
 
-// UTILS/SERVICES
 import {
   wallet_generate_solana,
   wallet_generate_ethereum,
   wallet_generate_bitcoin,
 } from '../utils/services';
-
-// UTILS/COMMON
-import { freeze, random, sysgmt } from '../utils/common';
 
 // COMMON CONFIGURATION VALUES OF THE SYSTEM
 const config: config_i = {
@@ -42,6 +40,8 @@ const config: config_i = {
 
   ENV_DB_URL: process.env.DB_URL || 'mongodb://127.0.0.1:27017',
   ENV_DB_NAME: process.env.DB_NAME || 'server',
+
+  ENV_REDIS_URL: process.env.ENV_REDIS_URL || 'redis://127.0.0.1:6379',
 
   ENV_ROLE_KEY_ADMIN: random() || process.env.ROLE_KEY_ADMIN || '',
   ENV_ROLE_KEY_USER: process.env.ROLE_KEY_USER || random(),
@@ -78,6 +78,7 @@ const config: config_i = {
   endpoint_static_images_id: '/images/:id',
   // auth
   endpoint_user_profile: '/profile', // PUBLIC
+  endpoint_user_sessions: '/sessions', // AUTH
   endpoint_user_signin: '/signin', // PUBLIC
   endpoint_user_signup: '/signup', // PUBLIC
   endpoint_user_signout: '/signout', // AUTH

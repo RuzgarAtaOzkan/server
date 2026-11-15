@@ -13,16 +13,19 @@ import config from '../config';
 
 export async function load_redis(options: options_i): Promise<RedisClientType> {
   /**
-   * Redis rules:
-   * - no HSET only top level hashes with SET
-   *
    * All Redis hashes:
-   * - "settings"
-   * - "session:{sid}"
-   * - "sessions:{user_id}"
+   *
+   * - "settings" => String
+   * - "session:{sid}" => String
+   * - "sessions:{user_id}" => List
    */
 
-  const client: RedisClientType = createClient();
+  // provide a different IP address if you want to  connect to a different
+  //  machine, to scale in the future, we would want to have a single redis source to do things like setting limit in sessions count or other atomic stuff,
+  //  that is only achievable with a single source of redis service instance
+  const client: RedisClientType = createClient({
+    url: config.ENV_REDIS_URL,
+  });
 
   client.on('error', (err: any) => {
     console.info(
@@ -57,7 +60,7 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
 
   // TODO: configure the initial settings values
   const settings: redis_settings_i = {
-    exchange: { USD: 1, AED: 3.6725, EUR: 0.8934, TRY: 46 }, // doviz burosu
+    exchange: { USD: 1, AED: 3.6725, EUR: 0.8934, TRY: 50.34 }, // doviz burosu
     blockchains: blockchains,
   };
 
@@ -74,6 +77,7 @@ export async function load_redis(options: options_i): Promise<RedisClientType> {
    * @Sample user session
    * 
 * const session: redis_session_i = {
+*   user_agent: "Postman/7.8.9"
     user_id: '123',
     ip: '123',
     remember: false,

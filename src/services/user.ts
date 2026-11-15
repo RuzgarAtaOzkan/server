@@ -8,10 +8,12 @@ import crypto from 'node:crypto';
 import { Document, InsertOneResult, UpdateResult, ObjectId } from 'mongodb';
 import { options_i, redis_session_i } from 'interfaces/loaders';
 import {
+  user_delete_session_credentials_i,
   user_email_change_credentials_i,
   user_email_change_result_i,
   user_get_profile_credentials_i,
   user_get_profile_result_i,
+  user_get_sessions_credentials_i,
   user_password_change_credentials_i,
   user_password_reset_credentials_i,
   user_patch_profile_credentials_i,
@@ -26,18 +28,18 @@ import { user_profile_i } from 'interfaces/utils';
 // CONFIG
 import config from '../config';
 
+// UTILS/COMMON
+import { random } from '../utils/common';
+
 // UTILS/SERVICES
 import {
   user_validator_init,
-  user_return_profile,
+  user_fetch_profile,
   user_generate_email_verification_code,
   user_create_doc,
   user_create_session,
   user_generate_password_reset_code,
 } from '../utils/services';
-
-// UTILS/COMMON
-import { random } from '../utils/common';
 
 class service_user_init {
   private readonly options: options_i;
@@ -59,9 +61,10 @@ class service_user_init {
 
     doc._id = insert.insertedId;
 
-    const profile: user_profile_i = user_return_profile(doc);
+    const profile: user_profile_i = await user_fetch_profile(doc, this.options);
 
     const session: redis_session_i = {
+      user_agent: credentials.user_agent,
       user_id: insert.insertedId.toString(),
       ip: credentials.ip,
       remember: credentials.remember,
@@ -90,9 +93,13 @@ class service_user_init {
   ): Promise<user_signin_result_i> {
     const user: Document = await this.validator.signin(credentials);
 
-    const profile: user_profile_i = user_return_profile(user);
+    const profile: user_profile_i = await user_fetch_profile(
+      user,
+      this.options,
+    );
 
     const session: redis_session_i = {
+      user_agent: credentials.user_agent,
       user_id: user._id.toString(),
       ip: credentials.ip,
       remember: credentials.remember,
@@ -118,25 +125,31 @@ class service_user_init {
   async verify_email(code: string): Promise<user_profile_i> {
     const user: Document = await this.validator.verify_email(code);
 
-    const email_verification_code: string =
-      await user_generate_email_verification_code(0, this.options);
+    // const email_verification_code: string = await user_generate_email_verification_code(0, this.options);
 
     await this.options.db.users.updateOne(
       { _id: user._id },
       {
         $set: {
           email_verified: true,
-          email_verification_code: email_verification_code,
+          // email_verification_code: email_verification_code,
           updated_at: new Date(),
+        },
+        $unset: {
+          email_verification_code: 1,
         },
       },
     );
 
     user.email_verified = true;
-    user.email_verification_code = email_verification_code;
     user.updated_at = new Date();
 
-    const profile: user_profile_i = user_return_profile(user);
+    delete user.email_verification_code;
+
+    const profile: user_profile_i = await user_fetch_profile(
+      user,
+      this.options,
+    );
 
     return profile;
   }
@@ -145,6 +158,8 @@ class service_user_init {
   async get_profile(
     credentials: user_get_profile_credentials_i,
   ): Promise<user_get_profile_result_i> {
+    // in the scenario where the user is not authenticated, the very first request to /profile - GET will be undefined as there is no sid in the client' browser, the second request will have the empty string that server provided to the client side
+
     if (credentials.sid === undefined) {
       return {
         profile: null,
@@ -187,7 +202,10 @@ class service_user_init {
       };
     }
 
-    const profile: user_profile_i = user_return_profile(user);
+    const profile: user_profile_i = await user_fetch_profile(
+      user,
+      this.options,
+    );
 
     // session time to live in seconds (number)
     const session_ttl: number = await this.options.redis.ttl(
@@ -219,6 +237,64 @@ class service_user_init {
       cookie_value: credentials.sid,
       cookie_expires: cookie_expires,
     };
+
+    return result;
+  }
+
+  async get_sessions(
+    credentials: user_get_sessions_credentials_i,
+  ): Promise<redis_session_i[]> {
+    await this.validator.get_sessions(credentials);
+
+    const sessions: string[] = await this.options.redis.sendCommand([
+      'LRANGE',
+      'sessions:' + credentials.user._id,
+      '0',
+      '-1',
+    ]);
+
+    const promises: Promise<string>[] = [];
+    for (let i: number = 0; i < sessions.length; i++) {
+      promises.push(this.options.redis.GET('session:' + sessions[i]));
+    }
+
+    const resolves: string[] = await Promise.all(promises);
+
+    const result: redis_session_i[] = [];
+    for (let i: number = 0; i < resolves.length; i++) {
+      const session: redis_session_i | null = JSON.parse(resolves[i]);
+
+      if (session === null) {
+        this.options.redis.sendCommand([
+          'LREM',
+          'sessions:' + credentials.user._id,
+          '0',
+          sessions[i],
+        ]);
+
+        continue;
+      }
+
+      result[result.length] = session;
+    }
+
+    return result;
+  }
+
+  async delete_session(
+    credentials: user_delete_session_credentials_i,
+  ): Promise<number> {
+    const sessions: string[] = await this.validator.delete_session(credentials);
+
+    await this.options.redis.DEL('session:' + credentials.sid);
+
+    // delete a specific sid atomically
+    const result: number = await this.options.redis.sendCommand([
+      'LREM',
+      'sessions:' + credentials.user._id,
+      '0',
+      credentials.sid,
+    ]);
 
     return result;
   }
@@ -334,7 +410,10 @@ class service_user_init {
     credentials.user.email_verified = false;
     credentials.user.updated_at = new Date();
 
-    const profile: user_profile_i = user_return_profile(credentials.user);
+    const profile: user_profile_i = await user_fetch_profile(
+      credentials.user,
+      this.options,
+    );
 
     const result: user_email_change_result_i = {
       profile: profile,
@@ -350,10 +429,7 @@ class service_user_init {
     const user: Document = await this.validator.reset_password(credentials);
 
     // put an expired password reset code after user successfully reset his password
-    const code: string = await user_generate_password_reset_code(
-      0,
-      this.options,
-    );
+    // const code: string = await user_generate_password_reset_code(0, this.options);
 
     await this.options.db.users.updateOne(
       { password_reset_code: credentials.code },
@@ -363,13 +439,19 @@ class service_user_init {
             .createHash('sha256')
             .update(credentials.password)
             .digest('hex'),
-          password_reset_code: code,
+          // password_reset_code: code,
           updated_at: new Date(),
+        },
+        $unset: {
+          password_reset_code: 1,
         },
       },
     );
 
-    const profile: user_profile_i = user_return_profile(user);
+    const profile: user_profile_i = await user_fetch_profile(
+      user,
+      this.options,
+    );
 
     return profile;
   }
@@ -392,7 +474,10 @@ class service_user_init {
       },
     );
 
-    const profile: user_profile_i = user_return_profile(credentials.user);
+    const profile: user_profile_i = await user_fetch_profile(
+      credentials.user,
+      this.options,
+    );
 
     return profile;
   }
@@ -403,6 +488,14 @@ class service_user_init {
     const result: number = await this.options.redis.DEL(
       'session:' + credentials.sid,
     );
+
+    // delete a specific sid atomically
+    await this.options.redis.sendCommand([
+      'LREM',
+      'sessions:' + credentials.user._id,
+      0,
+      credentials.sid,
+    ]);
 
     return result;
   }

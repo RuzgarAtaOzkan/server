@@ -8,6 +8,7 @@ import { user_profile_i } from './utils';
 
 // USER INTERFACES
 export interface user_signup_credentials_i {
+  readonly user_agent: string;
   name: string;
   username: string;
   email: string;
@@ -26,6 +27,7 @@ export interface user_signup_result_i {
 }
 
 export interface user_signin_credentials_i {
+  readonly user_agent: string;
   uid: string;
   readonly password: string;
   readonly remember: boolean;
@@ -58,6 +60,15 @@ export interface user_patch_profile_credentials_i {
   district: string;
   address: string;
   readonly zip: number;
+  readonly user: Document;
+}
+
+export interface user_get_sessions_credentials_i {
+  readonly user: Document;
+}
+
+export interface user_delete_session_credentials_i {
+  readonly sid: string;
   readonly user: Document;
 }
 

@@ -25,6 +25,7 @@ export interface redis_settings_i {
 }
 
 export interface redis_session_i {
+  readonly user_agent: string;
   readonly user_id: string;
   readonly ip: string;
   readonly remember: boolean;

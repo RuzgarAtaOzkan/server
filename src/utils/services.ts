@@ -14,6 +14,8 @@ import {
   mail_send_password_reset_link_credentials_i,
   user_email_change_credentials_i,
   user_get_profile_credentials_i,
+  user_get_sessions_credentials_i,
+  user_delete_session_credentials_i,
   user_password_change_credentials_i,
   user_password_reset_credentials_i,
   user_patch_profile_credentials_i,
@@ -29,6 +31,7 @@ import config from '../config';
 import {
   random,
   str_remove_space,
+  strrmspc,
   strhasdup,
   base58_encode,
   base58_decode,
@@ -316,6 +319,10 @@ export class user_validator_init {
   }
 
   async signup(credentials: user_signup_credentials_i): Promise<void> {
+    if (typeof credentials.user_agent !== config.type_string) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
+
     if (typeof credentials.name !== config.type_string) {
       throw 'ERR_INVALID_NAME';
     }
@@ -332,25 +339,19 @@ export class user_validator_init {
       throw 'ERR_INVALID_PASSWORD';
     }
 
-    if (typeof credentials.ref_code === config.type_string) {
-      credentials.ref_code = str_remove_space(
-        credentials.ref_code,
-      ).toLowerCase();
-
-      if (credentials.ref_code.length > 16) {
-        throw 'ERR_LONG_REF';
-      }
-
-      if (validator.isAlphanumeric(credentials.ref_code) === false) {
-        throw 'ERR_INVALID_REF';
-      }
-    }
-
     if (typeof credentials.remember !== config.type_boolean) {
       throw 'ERR_INVALID_REMEMBER';
     }
 
+    if (typeof credentials.ref_code !== config.type_string) {
+      throw 'ERR_INVALID_REF';
+    }
+
     // ---
+
+    if (credentials.user_agent.length > 128) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
 
     if (credentials.name.length > 32) {
       throw 'ERR_LONG_NAME';
@@ -368,13 +369,22 @@ export class user_validator_init {
       throw 'ERR_LONG_PASSWORD';
     }
 
-    // ---
-
-    credentials.name = str_remove_space(credentials.name);
-    credentials.username = str_remove_space(credentials.username).toLowerCase();
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
+    if (credentials.ref_code.length > 16) {
+      throw 'ERR_LONG_REF';
+    }
 
     // ---
+
+    credentials.name = strrmspc(credentials.name);
+    credentials.username = strrmspc(credentials.username).toLowerCase();
+    credentials.email = strrmspc(credentials.email).toLowerCase();
+    credentials.ref_code = strrmspc(credentials.ref_code).toLowerCase();
+
+    // ---
+
+    if (validator.isAscii(credentials.user_agent) === false) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
 
     if (
       new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
@@ -399,6 +409,13 @@ export class user_validator_init {
       false
     ) {
       throw 'ERR_WEAK_PASSWORD';
+    }
+
+    if (
+      validator.isAlphanumeric(credentials.ref_code) === false &&
+      credentials.ref_code !== ''
+    ) {
+      throw 'ERR_INVALID_REF';
     }
 
     // ---
@@ -450,6 +467,10 @@ export class user_validator_init {
   }
 
   async signin(credentials: user_signin_credentials_i): Promise<Document> {
+    if (typeof credentials.user_agent !== config.type_string) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
+
     if (typeof credentials.uid !== config.type_string) {
       throw 'ERR_INVALID_UID';
     }
@@ -464,6 +485,10 @@ export class user_validator_init {
 
     // ---
 
+    if (credentials.user_agent.length > 128) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
+
     if (credentials.uid.length > 32) {
       throw 'ERR_LONG_UID';
     }
@@ -474,7 +499,13 @@ export class user_validator_init {
 
     // ---
 
-    credentials.uid = str_remove_space(credentials.uid).toLowerCase();
+    credentials.uid = strrmspc(credentials.uid).toLowerCase();
+
+    // ---
+
+    if (validator.isAscii(credentials.user_agent) === false) {
+      throw 'ERR_INVALID_USER_AGENT';
+    }
 
     // ---
 
@@ -510,9 +541,48 @@ export class user_validator_init {
       throw 'ERR_LONG_SID';
     }
 
-    if (validator.isAlphanumeric(credentials.sid) === false) {
+    // sid can be undefined or an empty string
+
+    if (
+      validator.isAlphanumeric(credentials.sid) === false &&
+      credentials.sid !== ''
+    ) {
       throw 'ERR_INVALID_SID';
     }
+  }
+
+  async get_sessions(
+    credentials: user_get_sessions_credentials_i,
+  ): Promise<void> {
+    // ...
+  }
+
+  async delete_session(
+    credentials: user_delete_session_credentials_i,
+  ): Promise<string[]> {
+    const sessions: string[] = await this.options.redis.sendCommand([
+      'LRANGE',
+      'sessions:' + credentials.user._id,
+      '0',
+      '-1',
+    ]);
+
+    // check if the sid exists inside the user' own sessions pool
+
+    let exists: boolean = false;
+    for (let i: number = 0; i < sessions.length; i++) {
+      if (sessions[i] === credentials.sid) {
+        exists = true;
+        break;
+      }
+    }
+
+    // user tried to delete someone else' sid
+    if (exists === false) {
+      throw 'ERR_INVALID_SID';
+    }
+
+    return sessions;
   }
 
   async edit_profile(
@@ -726,7 +796,7 @@ export class user_validator_init {
     // ---
 
     const exp: number =
-      parseInt(user.password_reset_code.substring(0, 8), 16) * 1000;
+      parseInt(user.password_reset_code.substring(0, 10), 16) * 1000;
 
     if (Date.now() > exp) {
       throw 'ERR_EXPIRED_CODE';
@@ -826,7 +896,7 @@ export class user_validator_init {
     // ---
 
     const exp: number =
-      parseInt(user.email_verification_code.substring(0, 8), 16) * 1000;
+      parseInt(user.email_verification_code.substring(0, 10), 16) * 1000;
 
     if (Date.now() > exp) {
       throw 'ERR_INVALID_CODE';
@@ -850,6 +920,7 @@ export class user_validator_init {
   }
 }
 
+// generates a new session id and add it to the redis session: namespace, also add it to the sessions pool of redis
 export async function user_create_session(
   payload: redis_session_i,
   options: options_i,
@@ -858,7 +929,6 @@ export async function user_create_session(
 
   const session: string = JSON.stringify(payload);
 
-  // session id: 32 bytes strong random hexadecimal string
   let sid: string = random();
 
   // set expiration for the individual session id (sid) in seconds
@@ -884,24 +954,40 @@ export async function user_create_session(
     });
   }
 
+  // LPUSH the sid to sessions:user_id, then trim the array to cap the limit to 16 items
+  const lua: string =
+    'redis.call("LPUSH", KEYS[1], ARGV[1]);redis.call("LTRIM", KEYS[1], 0, 15);return ARGV[1];';
+
+  await options.redis.eval(lua, {
+    keys: ['sessions:' + payload.user_id],
+    arguments: [sid],
+  });
+
   return sid;
 }
 
 export async function user_generate_email_verification_code(
-  length: number = config.time_one_hour_ms, // Date.now() + length in milliseconds
+  duration: number = config.time_one_hour_ms, // Date.now() + duration in milliseconds
   options: options_i,
 ): Promise<string> {
-  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, setting the expiration date to year 2106 or more is forbidden, it causes the hexadecimal to be 10 bytes which break the algorithms of some functions dependent on it.
+  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, exp is calculated to be 5 bytes long (0xffffffffff) so it can reach to year 36812, February 20, Monday, UTC 12:36:15 AM
 
-  const exp: string = Math.floor((Date.now() + length) / 1000).toString(16);
+  let exp: string = Math.floor((Date.now() + duration) / 1000).toString(16);
 
-  let code: string = exp + random(24);
+  const zeros: number = 10 - exp.length;
+  for (let i: number = 0; i < zeros; i++) {
+    exp = '0' + exp;
+  }
+
+  const length: number = 32 - exp.length;
+
+  let code: string = exp + random(length);
   let user: Document | null = await options.db.users.findOne({
     email_verification_code: code,
   });
 
   while (user) {
-    code = exp + random(24);
+    code = exp + random(length);
     user = await options.db.users.findOne({
       email_verification_code: code,
     });
@@ -911,20 +997,27 @@ export async function user_generate_email_verification_code(
 }
 
 export async function user_generate_password_reset_code(
-  length: number = config.time_one_hour_ms, // Date.now() + length in milliseconds
+  duration: number = config.time_one_hour_ms, // Date.now() + duration in milliseconds
   options: options_i,
 ): Promise<string> {
-  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, setting the expiration date to year 2106 or more is forbidden, it causes the hexadecimal to be 10 bytes which breaks the algorithms which expects hexadecimal to be 8 bytes long.
+  // IMPORTANT: exp is a Unix Epoch timestamp, which means it is seconds since Jan 1 1970, exp is calculated to be 5 bytes long (0xffffffffff) so it can reach to year 36812, February 20, Monday, UTC 12:36:15 AM
 
-  const exp: string = Math.floor((Date.now() + length) / 1000).toString(16);
+  let exp: string = Math.floor((Date.now() + duration) / 1000).toString(16);
 
-  let code: string = exp + random(24);
+  const zeros: number = 10 - exp.length;
+  for (let i: number = 0; i < zeros; i++) {
+    exp = '0' + exp;
+  }
+
+  const length: number = 32 - exp.length;
+
+  let code: string = exp + random(length);
   let user: Document | null = await options.db.users.findOne({
     password_reset_code: code,
   });
 
   while (user) {
-    code = exp + random(24);
+    code = exp + random(length);
     user = await options.db.users.findOne({ password_reset_code: code });
   }
 
@@ -934,13 +1027,17 @@ export async function user_generate_password_reset_code(
 export async function user_generate_ref_code(
   options: options_i,
 ): Promise<string> {
-  let code: string = random(8);
+  let length: number = 8;
+
+  let code: string = random(length);
   let user: Document | null = await options.db.users.findOne({
     ref_code: code,
   });
 
   while (user) {
-    code = random(8);
+    length = length + 1;
+
+    code = random(length);
     user = await options.db.users.findOne({ ref_code: code });
   }
 
@@ -953,24 +1050,21 @@ export async function user_create_doc(
 ): Promise<Document> {
   const res = await Promise.all([
     user_generate_email_verification_code(config.time_one_hour_ms, options),
-    user_generate_password_reset_code(0, options),
     user_generate_ref_code(options),
-    options.db.users.findOne({
-      ref_code: credentials.ref_code ? credentials.ref_code.toLowerCase() : '',
-    }),
+    options.db.users.findOne({ ref_code: credentials.ref_code }),
   ]);
 
   const email_verification_code: string = res[0];
-  const password_reset_code: string = res[1];
-  const ref_code: string = res[2];
-  const ref_from: ObjectId | null = res[3] ? res[3]._id : null;
+  const ref_code: string = res[1];
+  const ref_from: null | Document = res[2];
 
   const doc: Document = {
-    name: str_remove_space(credentials.name),
-    username: str_remove_space(credentials.username).toLowerCase(),
+    name: credentials.name,
+
+    username: credentials.username,
     username_changed_at: new Date(),
 
-    email: str_remove_space(credentials.email).toLowerCase(),
+    email: credentials.email,
     email_verified: false,
     email_verification_code: email_verification_code,
 
@@ -978,16 +1072,16 @@ export async function user_create_doc(
       .createHash('sha256')
       .update(credentials.password)
       .digest('hex'),
-    password_reset_code: password_reset_code,
+    // password_reset_code: "6af5cde1e468cf848295c9ea9c4f7768",
 
     role: config.role_user,
     role_key: config.ENV_ROLE_KEY_USER,
 
     ref_code: ref_code,
-    ref_from: ref_from,
+    // ref_from: ObjectId("6af5cde1001c29d5439fc259")
 
     img: '',
-    phone: '', // str_remove_space(credentials.phone),
+    phone: '', // strrmspc(credentials.phone),
 
     city: '', // istanbul
     district: '', // buyukcekmece
@@ -998,9 +1092,14 @@ export async function user_create_doc(
     updated_at: new Date(),
   };
 
+  if (ref_from) {
+    doc.ref_from = ref_from._id;
+  }
+
   return doc;
 }
 
+// deprecated function
 export async function user_generate_api_key(
   options: options_i,
 ): Promise<string> {
@@ -1048,8 +1147,27 @@ export async function user_generate_api_key(
   return final;
 }
 
-export function user_return_profile(user: Document): user_profile_i {
-  return {
+// fetch me their soulsss
+export async function user_fetch_profile(
+  user: Document,
+  options: options_i,
+): Promise<user_profile_i> {
+  let ref_from: null | string = null;
+
+  if (user.ref_from) {
+    const ref_user: Document = await options.db.users.findOne({
+      _id: user.ref_from,
+    });
+
+    ref_from = JSON.stringify({
+      name: ref_user.name,
+      username: ref_user.username,
+      email: ref_user.email,
+      img: ref_user.img,
+    });
+  }
+
+  const profile: user_profile_i = {
     _id: user._id,
 
     name: user.name,
@@ -1063,7 +1181,7 @@ export function user_return_profile(user: Document): user_profile_i {
     img: user.img,
 
     ref_code: user.ref_code.toUpperCase(),
-    ref_from: user.ref_from,
+    ref_from: ref_from,
 
     city: user.city,
     district: user.district,
@@ -1073,6 +1191,8 @@ export function user_return_profile(user: Document): user_profile_i {
     created_at: user.created_at,
     updated_at: user.updated_at,
   };
+
+  return profile;
 }
 
 ///////////////////////
@@ -2784,7 +2904,7 @@ export default {
   user_generate_password_reset_code,
   user_generate_ref_code,
   user_create_doc,
-  user_return_profile,
+  user_fetch_profile,
 
   // card utils
   card_validator_init,

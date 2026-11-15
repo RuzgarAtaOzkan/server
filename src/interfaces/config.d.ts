@@ -35,6 +35,7 @@ export default interface config_i {
   readonly ENV_COOKIE_LIFETIME_MS: number;
   readonly ENV_DB_URL: string;
   readonly ENV_DB_NAME: string;
+  readonly ENV_REDIS_URL: string;
   readonly ENV_ROLE_KEY_USER: string;
   readonly ENV_ROLE_KEY_ADMIN: string;
   readonly ENV_EMAIL_HOST: string;
@@ -59,6 +60,7 @@ export default interface config_i {
   readonly endpoint_static_root: string;
   readonly endpoint_static_images_id: string;
   readonly endpoint_user_profile: string;
+  readonly endpoint_user_sessions: string;
   readonly endpoint_user_signin: string;
   readonly endpoint_user_signup: string;
   readonly endpoint_user_signout: string;
