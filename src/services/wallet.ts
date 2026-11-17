@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { Document, InsertOneResult } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // UTILS/SERVICES
 import { wallet_validator_init, wallet_create_doc } from '../utils/services';

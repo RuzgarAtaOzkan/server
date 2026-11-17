@@ -19,9 +19,13 @@ import load_socket from './socket';
 import load_cron from './cron';
 import load_fastify from './fastify';
 
-// UTILS/COMMON
-import { random } from '../utils/common';
-
+// the project execution consists of 5 main component:
+//
+// 1: Redis service running on the machine
+// 2: MongoDB service running on the machine
+// 3: WebSocket clients to communicate with blockchain data
+// 4: Cron jobs
+// 5: Fastify server
 export async function init(args: string = ''): Promise<void> {
   if (config.ENV_API_KEY_CAPTCHA) {
     // verify the email service credentials
@@ -48,17 +52,17 @@ export async function init(args: string = ''): Promise<void> {
 
   const redis: RedisClientType = await load_redis(options);
   console.info(
-    '[  \x1b[32mOK\x1b[0m  ] \x1b[1mRedis client connected and configured (' +
+    '[  \x1b[32mOK\x1b[0m  ] \x1b[1mRedis client connected and configured\x1b[0m (' +
       config.ENV_REDIS_URL +
-      ')\x1b[0m',
+      ')',
   );
 
   // configure mongodb
   const mongodb: MongoClient = await load_mongodb(options);
   console.info(
-    '[  \x1b[32mOK\x1b[0m  ] \x1b[1mMongoDB client connected and configured (' +
+    '[  \x1b[32mOK\x1b[0m  ] \x1b[1mMongoDB client connected and configured\x1b[0m (' +
       config.ENV_DB_URL +
-      ')\x1b[0m',
+      ')',
   );
 
   await load_socket(options);
@@ -74,10 +78,14 @@ export async function init(args: string = ''): Promise<void> {
   // load the Fastify App with the configured mongo client.
   const server: FastifyInstance = await load_fastify(options);
   console.info(
-    `[  \x1b[32mOK\x1b[0m  ] \x1b[1mFastify server configured and initialized (PORT: \x1b[38;2;255;165;0m${config.ENV_PORT}\x1b[0m)`,
+    '[  \x1b[32mOK\x1b[0m  ] \x1b[1mFastify server configured and initialized\x1b[0m (http://' +
+      config.ENV_HOST +
+      ':' +
+      config.ENV_PORT +
+      ')',
   );
 
-  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart iksirbaz-api, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
+  // IMPORTANT: stop accepting new requests and wait for the ongoing ones to finish before exiting the process. Super important for the scenarios such as: systemctl restart server, otherwise the user's requests, mongodb writes, redis processes can cut in halfway which is a nightmare
 
   process.on('SIGTERM', async function (): Promise<void> {
     // wait for the users to finish their requests (db writes, other async)

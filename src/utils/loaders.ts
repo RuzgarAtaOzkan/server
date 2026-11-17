@@ -8,11 +8,11 @@ import config from '../config';
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId, UpdateResult } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i, redis_settings_i } from 'interfaces/loaders';
 import { blockchain_i } from 'interfaces/config';
 
 // UTILS
-import { sleep, base58_decode, fixd } from '../utils/common';
+import { base58_decode, fixd } from '../utils/common';
 import { order_create_doc } from '../utils/services';
 
 // UTILS/CRYPTO
@@ -102,6 +102,41 @@ export async function socket_wallet_connect_solana(
       helius_subscription: data.params.subscription,
     });
 
+    // wallet configurations
+    wallet.basket = JSON.parse(wallet.basket);
+
+    const update_amount: boolean =
+      Date.now() - wallet.created_at.valueOf() > config.time_one_min_ms * 10;
+
+    if (update_amount) {
+      let price: number = 0; // total price of the current basket
+      for (let i: number = 0; i < wallet.basket.length; i++) {
+        price += wallet.basket[i].price;
+      }
+
+      const settings: redis_settings_i = JSON.parse(
+        await options.redis.GET('settings'),
+      );
+
+      let blockchain_price: number = 0;
+      for (let i: number = 0; i < settings.blockchains.length; i++) {
+        if (settings.blockchains[i].id === id) {
+          blockchain_price = settings.blockchains[i].price;
+          break;
+        }
+      }
+
+      const amount: number = fixd(price / blockchain_price, blockchain_price); // remove dust money
+
+      wallet.amount = amount;
+      wallet.created_at = new Date();
+
+      options.db.wallets.updateOne(
+        { _id: wallet._id },
+        { $set: { amount: amount, created_at: new Date() } },
+      );
+    }
+
     const expired: boolean =
       Date.now() - wallet.updated_at.valueOf() > config.time_one_hour_ms;
 
@@ -161,8 +196,6 @@ export async function socket_wallet_connect_solana(
     if (wallet_update.modifiedCount === 0) {
       return;
     }
-
-    wallet.basket = JSON.parse(wallet.basket);
 
     for (let i: number = 0; i < wallet.basket.length; i++) {
       const product_update: UpdateResult = await options.db.products.updateOne(
@@ -303,7 +336,7 @@ export async function socket_wallet_connect_ethereum(
         jsonrpc: '2.0',
         id: 2,
         method: 'eth_getBlockByHash',
-        params: [data.params.result.hash, true],
+        params: [data.params.result.hash, true], // fullTransactions: true
       }),
     });
 
@@ -342,23 +375,46 @@ export async function socket_wallet_connect_ethereum(
 
     const data_block: any = await res_block.json();
 
-    const transactions: any[] = data_block.result.transactions;
+    const transactions = data_block.result.transactions;
 
     const accounts: string[] = [];
+
+    // remove the transaction objects whose values of "to" are null
+    // and add the "to" values to accounts array to find corresponding documents in wallets
+    let transactions_length: number = 0; // new transactions length
     for (let i: number = 0; i < transactions.length; i++) {
       if (transactions[i].to === null) {
-        accounts.push('');
+        for (let j = i; j < transactions.length; j++) {
+          if (transactions[j].to === null) {
+            continue;
+          }
+
+          transactions[i] = Object.assign({}, transactions[j]);
+
+          accounts.push(transactions[i].to.toLowerCase());
+
+          transactions[j].to = null;
+
+          transactions_length++;
+
+          break;
+        }
+
         continue;
       }
 
       accounts.push(transactions[i].to.toLowerCase());
+      transactions_length++;
     }
+
+    transactions.length = transactions_length;
 
     const wallets: Document[] = await options.db.wallets
       .find({ public: { $in: accounts }, status: 0 })
       .limit(256)
       .toArray();
 
+    // wallets[i].public => transactions[txn, txn, txn, txn]
     for (let i: number = 0; i < wallets.length; i++) {
       for (let j: number = 0; j < transactions.length; j++) {
         if (transactions[j].to === null) {
@@ -367,6 +423,45 @@ export async function socket_wallet_connect_ethereum(
 
         if (wallets[i].public !== transactions[j].to.toLowerCase()) {
           continue;
+        }
+
+        // wallet configurations
+        wallets[i].basket = JSON.parse(wallets[i].basket);
+
+        const update_amount: boolean =
+          Date.now() - wallets[i].created_at.valueOf() >
+          config.time_one_min_ms * 10;
+
+        if (update_amount) {
+          let price: number = 0; // total price of the current basket
+          for (let k: number = 0; k < wallets[i].basket.length; k++) {
+            price += wallets[i].basket[k].price;
+          }
+
+          const settings: redis_settings_i = JSON.parse(
+            await options.redis.GET('settings'),
+          );
+
+          let blockchain_price: number = 0;
+          for (let k: number = 0; k < settings.blockchains.length; k++) {
+            if (settings.blockchains[k].id === id) {
+              blockchain_price = settings.blockchains[k].price;
+              break;
+            }
+          }
+
+          const amount: number = fixd(
+            price / blockchain_price,
+            blockchain_price,
+          ); // remove dust money
+
+          wallets[i].amount = amount;
+          wallets[i].created_at = new Date();
+
+          options.db.wallets.updateOne(
+            { _id: wallets[i]._id },
+            { $set: { amount: amount, created_at: new Date() } },
+          );
         }
 
         const expired: boolean =
@@ -409,8 +504,6 @@ export async function socket_wallet_connect_ethereum(
         if (wallet_update.modifiedCount === 0) {
           break;
         }
-
-        wallets[i].basket = JSON.parse(wallets[i].basket);
 
         let product_update_err: boolean = false;
         for (let k: number = 0; k < wallets[i].basket.length; k++) {
@@ -491,8 +584,8 @@ export async function cron_wallet_scan_solana(
   const id: string = 'solana'; // blockchain id
   const settings = JSON.parse(await options.redis.GET('settings'));
 
-  let blockchain: blockchain_i | any = null;
-  let blockchain_price: number = 0;
+  let blockchain: blockchain_i | any = null; // blockchain in config
+  let blockchain_price: number = 0; // blockchain in settings
   let socket: WebSocket | any = null;
 
   for (let i: number = 0; i < config.blockchains.length; i++) {
@@ -516,7 +609,7 @@ export async function cron_wallet_scan_solana(
     }
   }
 
-  const limit: number = 64; // chunk size, helius RPC API accepts maximum 100 address at once
+  const limit: number = 64; // chunk size, helius RPC API accepts maximum 100 addresses at once
   let skip: number = 0;
 
   while (true) {
@@ -530,7 +623,6 @@ export async function cron_wallet_scan_solana(
     const publics: string[] = [];
     for (let i: number = 0; i < wallets.length; i++) {
       publics.push(wallets[i].public);
-
       wallets[i].basket = JSON.parse(wallets[i].basket);
 
       // 10 minutes passed without updating the amount
@@ -545,6 +637,10 @@ export async function cron_wallet_scan_solana(
         }
 
         const amount: number = fixd(price / blockchain_price, blockchain_price); // remove dust money
+
+        // update the local wallet documents
+        wallets[i].amount = amount;
+        wallets[i].created_at = new Date();
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },
@@ -563,7 +659,7 @@ export async function cron_wallet_scan_solana(
         jsonrpc: '2.0',
         id: 1,
         method: 'getMultipleAccounts',
-        params: [publics],
+        params: [publics, 'confirmed'], // parameters (array, "commitment")
       }),
     });
 
@@ -605,11 +701,11 @@ export async function cron_wallet_scan_solana(
     for (let i: number = 0; i < data.result.value.length; i++) {
       // validate current wallet to see if it is idle and waiting for deletion or waiting for price update
 
-      // expiration gap duration should be specific to the blockchain because every blockchain has a different transaction confirmation duration
+      // expiration gap duration should be specific to the blockchain because every blockchain has a different transaction confirmation time
       const expired: boolean =
         Date.now() - wallets[i].updated_at.valueOf() > config.time_one_hour_ms;
 
-      const account: any | null = data.result.value[i];
+      const account = data.result.value[i];
 
       if (account === null) {
         if (expired) {
@@ -628,11 +724,6 @@ export async function cron_wallet_scan_solana(
         }
 
         continue;
-      }
-
-      let amount: number = account.lamports;
-      for (let i = 0; i < blockchain.coin_decimals; i++) {
-        amount = amount / 10;
       }
 
       /*
@@ -655,6 +746,11 @@ export async function cron_wallet_scan_solana(
         continue;
       }
       */
+
+      let amount: number = account.lamports;
+      for (let i = 0; i < blockchain.coin_decimals; i++) {
+        amount = amount / 10;
+      }
 
       if (amount < wallets[i].amount) {
         // TODO: refund then delete
@@ -767,7 +863,9 @@ export async function cron_wallet_scan_ethereum(
   options: options_i,
 ): Promise<void> {
   const id: string = 'ethereum'; // blockchain id
-  const settings = JSON.parse(await options.redis.GET('settings'));
+  const settings: redis_settings_i = JSON.parse(
+    await options.redis.GET('settings'),
+  );
 
   let blockchain: blockchain_i | any = null;
   let blockchain_price: number = 0;
@@ -796,13 +894,18 @@ export async function cron_wallet_scan_ethereum(
       .skip(skip)
       .toArray();
 
-    const body = [];
+    const body: object[] = [];
     for (let i: number = 0; i < wallets.length; i++) {
+      // TODO: decide the commitment param value relative to the amount value,
+      // if the amount is relatively higher compared to other documents,
+      // change the commitment to a higher state such as finalized
+      // to protect the funds from being reorged out (reversing a transaction from blockchain)
+
       body.push({
         jsonrpc: '2.0',
         method: 'eth_getBalance',
-        params: [wallets[i].public, 'latest'],
-        id: i + 1, // super important to decide wallet index because infura rpc doesn't guarantee array allignment with request array
+        params: [wallets[i].public, 'safe'], // commitment values: "pending" "latest" "safe" "finalzed"
+        id: i + 1, // !IMPORTANT: super important to decide wallet index because infura rpc doesn't guarantee array allignment with array we send in request
       });
 
       wallets[i].basket = JSON.parse(wallets[i].basket);
@@ -818,8 +921,10 @@ export async function cron_wallet_scan_ethereum(
           price += wallets[i].basket[j].price;
         }
 
-        let amount: number = price / blockchain_price;
-        amount = fixd(amount, blockchain_price); // remove dust money
+        const amount: number = fixd(price / blockchain_price, blockchain_price); // remove dust money
+
+        wallets[i].amount = amount;
+        wallets[i].created_at = new Date();
 
         options.db.wallets.updateOne(
           { _id: wallets[i]._id },

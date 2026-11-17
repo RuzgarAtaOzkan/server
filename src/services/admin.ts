@@ -11,10 +11,13 @@ import {
   InsertOneResult,
   ObjectId,
 } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';
+
+// UTILS/COMMON
+import { random } from '../utils/common';
 
 // UTILS/SERVICES
 import {
@@ -22,9 +25,6 @@ import {
   product_create_doc,
   coupon_create_doc,
 } from '../utils/services';
-
-// UTILS/COMMON
-import { random } from '../utils/common';
 
 class service_admin_init {
   private readonly options: options_i;

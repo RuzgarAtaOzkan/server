@@ -1,7 +1,7 @@
 'use strict';
 
 // INTERFACES
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // UTILS
 import { settings_validator_init } from '../utils/services';

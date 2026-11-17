@@ -6,8 +6,7 @@ import validator from 'validator';
 
 // INTERFACES
 import { Document, ObjectId } from 'mongodb';
-import { options_i } from 'interfaces/loaders';
-import { redis_session_i } from 'interfaces/loaders';
+import { options_i, redis_session_i } from 'interfaces/loaders';
 import { user_profile_i, wallet_i } from 'interfaces/utils';
 import {
   mail_resend_verification_link_credentials_i,
@@ -560,6 +559,18 @@ export class user_validator_init {
   async delete_session(
     credentials: user_delete_session_credentials_i,
   ): Promise<string[]> {
+    if (typeof credentials.target !== config.type_string) {
+      throw 'ERR_INVALID_SID';
+    }
+
+    if (credentials.target.length > 128) {
+      throw 'ERR_LONG_SID';
+    }
+
+    if (validator.isAlphanumeric(credentials.target) === false) {
+      throw 'ERR_INVALID_SID';
+    }
+
     const sessions: string[] = await this.options.redis.sendCommand([
       'LRANGE',
       'sessions:' + credentials.user._id,
@@ -906,7 +917,11 @@ export class user_validator_init {
   }
 
   async signout(credentials: user_signout_credentials_i): Promise<void> {
-    if (typeof credentials.sid !== config.type_string) {
+    /**
+     * 
+     * prevalidation.validate_user() already checks the validity of sid string
+     * 
+     *    if (typeof credentials.sid !== config.type_string) {
       throw 'ERR_INVALID_SID';
     }
 
@@ -916,7 +931,9 @@ export class user_validator_init {
 
     if (validator.isAlphanumeric(credentials.sid) === false) {
       throw 'ERR_INVALID_SID';
-    }
+    } 
+     * 
+     */
   }
 }
 
@@ -954,13 +971,31 @@ export async function user_create_session(
     });
   }
 
-  // LPUSH the sid to sessions:user_id, then trim the array to cap the limit to 16 items
-  const lua: string =
-    'redis.call("LPUSH", KEYS[1], ARGV[1]);redis.call("LTRIM", KEYS[1], 0, 15);return ARGV[1];';
+  // LPUSH the sid to the sessions:user_id,
+  // spot the expired sessions that are pushed to the outer scope
+  // and delete them from the key store (DEL),
+  // then trim the array to cap the limit to 16 items
+  const lua: string = `
+    redis.call("LPUSH", KEYS[1], ARGV[1]);
+
+    local expired_sessions = redis.call("LRANGE", KEYS[1], ARGV[2], -1);
+
+    if #expired_sessions > 0 then
+      local expired_keys = {};
+      for i = 1, #expired_sessions do
+        expired_keys[i] = "session:" .. expired_sessions[i];
+      end
+      redis.call("DEL", unpack(expired_keys));
+    end
+
+    redis.call("LTRIM", KEYS[1], 0, ARGV[2] - 1);
+
+    return ARGV[1];
+    `;
 
   await options.redis.eval(lua, {
     keys: ['sessions:' + payload.user_id],
-    arguments: [sid],
+    arguments: [sid, 16], // newly generated sid string, sessions list limit
   });
 
   return sid;
@@ -2052,47 +2087,61 @@ export class wallet_validator_init {
     if (typeof credentials.name !== config.type_string) {
       throw 'ERR_INVALID_NAME';
     }
-    credentials.name = str_remove_space(credentials.name);
+
+    if (typeof credentials.email !== config.type_string) {
+      throw 'ERR_INVALID_EMAIL';
+    }
+
+    if (typeof credentials.phone !== config.type_string) {
+      throw 'ERR_INVALID_PHONE';
+    }
+
+    // ---
+
     if (credentials.name.length > 32) {
       throw 'ERR_LONG_NAME';
     }
+
+    if (credentials.email.length > 32) {
+      throw 'ERR_LONG_EMAIL';
+    }
+
+    if (credentials.phone.length > 14) {
+      throw 'ERR_LONG_PHONE';
+    }
+
+    // ---
+
+    credentials.name = strrmspc(credentials.name);
+    credentials.email = strrmspc(credentials.email).toLowerCase();
+    credentials.phone = str_remove_space(credentials.phone);
+
+    // ---
+
     if (
       new RegExp(/^[a-zA-ZÇçĞğİıÖöŞşÜü ]+$/).test(credentials.name) === false
     ) {
       throw 'ERR_INVALID_NAME';
     }
 
-    // ---
-
-    if (typeof credentials.email !== config.type_string) {
-      throw 'ERR_INVALID_EMAIL';
-    }
-    credentials.email = str_remove_space(credentials.email).toLowerCase();
-    if (credentials.email.length > 32) {
-      throw 'ERR_LONG_EMAIL';
-    }
     if (validator.isEmail(credentials.email) === false) {
       throw 'ERR_INVALID_EMAIL';
     }
 
-    // ---
-
-    if (typeof credentials.phone !== config.type_string) {
-      throw 'ERR_INVALID_PHONE';
-    }
-    credentials.phone = str_remove_space(credentials.phone);
-    if (credentials.phone.length > 14) {
-      throw 'ERR_LONG_PHONE';
-    }
     if (validator.isMobilePhone(credentials.phone) === false) {
       throw 'ERR_INVALID_PHONE';
     }
 
+    // ---
+
     common_validator_init.validate_address(credentials);
+
     await common_validator_init.validate_basket(
       credentials.basket,
       this.options,
     );
+
+    // ---
 
     const settings = JSON.parse(await this.options.redis.GET('settings'));
 
@@ -2105,6 +2154,8 @@ export class wallet_validator_init {
         break;
       }
     }
+
+    // ---
 
     if (config.ENV_API_KEY_CAPTCHA) {
       if (typeof credentials.captcha !== config.type_string) {

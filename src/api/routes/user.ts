@@ -4,6 +4,7 @@
 import { UpdateResult } from 'mongodb';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { services_i } from 'interfaces/api';
+import { options_i, redis_session_i } from 'interfaces/loaders';
 import {
   user_signup_credentials_i,
   user_signup_result_i,
@@ -21,14 +22,12 @@ import {
   user_delete_session_credentials_i,
 } from 'interfaces/services';
 import { user_profile_i } from 'interfaces/utils';
-import { options_i } from 'interfaces/common';
 
 // API/MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';
 
 // CONFIG
 import config from '../../config';
-import { redis_session_i } from 'interfaces/loaders';
 
 function bind_user_routes(
   server: FastifyInstance,
@@ -188,7 +187,8 @@ function bind_user_routes(
       },
       handler: async function (request: any, reply: any) {
         const credentials: user_delete_session_credentials_i = {
-          sid: request.query.sid, // target sid for deletion, not the user' current sid
+          sid: request.cookies[config.ENV_COOKIE_NAME], // target sid for deletion, not the user' current sid,
+          target: request.query.sid, // target sid to point session for deletion
           user: request.user,
         };
 

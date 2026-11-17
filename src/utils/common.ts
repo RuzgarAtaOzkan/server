@@ -120,6 +120,7 @@ export function strhasdup(
 }
 
 // length param should be an even number for bytes to work properly
+// 1 byte means 0xff for randomBytes() function
 export function random(length: number = 32, type: string = 'hex'): string {
   switch (type) {
     case 'hex':

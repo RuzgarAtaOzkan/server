@@ -10,7 +10,7 @@ import fastify_static from '@fastify/static';
 
 // INTERFACES
 import { FastifyInstance } from 'fastify';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // API
 import bind_routes from '../api';

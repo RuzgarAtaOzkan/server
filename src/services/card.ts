@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { DeleteResult, Document, InsertOneResult, UpdateResult } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // UTILS/SERVICES
 import { card_create_doc, card_validator_init } from '../utils/services';

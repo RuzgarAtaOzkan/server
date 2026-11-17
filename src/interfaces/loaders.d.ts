@@ -9,7 +9,7 @@ import { blockchain_t } from 'types/config';
 export interface options_i {
   db: MongoClient | any;
   redis: RedisClientType | any;
-  sockets: WebSocket[]; // [new WebSocket(solana), new WebSocket(ethereum)]
+  sockets: WebSocket[] | any[]; // [new WebSocket(solana), new WebSocket(ethereum)]
 }
 
 export interface redis_settings_i {

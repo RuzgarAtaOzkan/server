@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { FastifyInstance } from 'fastify';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 import { services_i } from 'interfaces/api';
 
 // SERVICES

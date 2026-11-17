@@ -8,8 +8,7 @@ import validator from 'validator';
 import { Document } from 'mongodb';
 import { FastifyReply } from 'fastify/types/reply';
 import { FastifyRequest } from 'fastify/types/request';
-import { options_i } from 'interfaces/common';
-import { redis_session_i } from 'interfaces/loaders';
+import { options_i, redis_session_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../../config';

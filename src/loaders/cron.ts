@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 import { CronJob } from 'cron';
 
 // INTERFACES
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';

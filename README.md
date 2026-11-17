@@ -1,6 +1,6 @@
-# Fastify API Server
+# Server
 
-**scalable**, **secure**, **production-grade e-commerce API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
+**Scalable**, **secure**, **production-grade e-commerce API server** built with **Node.js** and **Fastify**, designed to run as a **systemd service on Linux**.
 
 The project focuses on **simplicity**, **reliability**, and **long-term maintainability**.
 It intentionally avoids modern JavaScript over-engineering and unnecessary abstractions.
@@ -11,13 +11,14 @@ This project follows a **strict**, **conservative coding style**:
 
 - Strict equality only (`===`), no loose comparisons
 - No JavaScript array helpers (`map`, `filter`, etc.), only explicit loops
-- Minimal to zero OOP, mostly functional programming
 - No unnecessary TypeScript interfaces or abstractions
 - Clean, predictable naming conventions
-- Simple and explicit dependency injection
 - Clear separation of responsibilities between components
+- Minimal to zero OOP, mostly functional programming
+- Simple and explicit dependency injection
 - Only official Node.js modules
 - Only official RPC APIs
+- Less AI, more handwritten code
 
 The goal is **boring**, **readable**, **auditable code** that behaves predictably in production.
 

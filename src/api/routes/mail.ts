@@ -7,7 +7,7 @@ import {
   mail_resend_verification_link_credentials_i,
   mail_send_password_reset_link_credentials_i,
 } from 'interfaces/services';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // API > MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';

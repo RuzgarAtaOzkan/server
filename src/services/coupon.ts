@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { Document } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // UTILS/SERVICES
 import { coupon_validator_init } from '../utils/services';

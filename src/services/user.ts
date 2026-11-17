@@ -260,7 +260,7 @@ class service_user_init {
 
     const resolves: string[] = await Promise.all(promises);
 
-    const result: redis_session_i[] = [];
+    const result: redis_session_i[] | any[] = [];
     for (let i: number = 0; i < resolves.length; i++) {
       const session: redis_session_i | null = JSON.parse(resolves[i]);
 
@@ -276,6 +276,9 @@ class service_user_init {
       }
 
       result[result.length] = session;
+
+      // current sid string in the sessions array alligned with the resolves array
+      result[result.length].sid = sessions[i];
     }
 
     return result;
@@ -286,14 +289,14 @@ class service_user_init {
   ): Promise<number> {
     const sessions: string[] = await this.validator.delete_session(credentials);
 
-    await this.options.redis.DEL('session:' + credentials.sid);
+    await this.options.redis.DEL('session:' + credentials.target);
 
-    // delete a specific sid atomically
+    // delete a specific target sid atomically
     const result: number = await this.options.redis.sendCommand([
       'LREM',
       'sessions:' + credentials.user._id,
       '0',
-      credentials.sid,
+      credentials.target,
     ]);
 
     return result;

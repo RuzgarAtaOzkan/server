@@ -4,7 +4,7 @@
 import { Document } from 'mongodb';
 import { FastifyInstance, RouteOptions } from 'fastify';
 import { services_i } from 'interfaces/api';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // API > MIDDLEWARE
 import prevalidation from '../middleware/prevalidation';

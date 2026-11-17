@@ -1,7 +1,7 @@
 'use strict';
 
 // INTERFACES
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';

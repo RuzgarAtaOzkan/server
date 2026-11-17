@@ -5,7 +5,7 @@ import { createClient } from 'redis';
 
 // INTERFACES
 import { RedisClientType } from 'redis';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 import { redis_settings_i, redis_session_i } from 'interfaces/loaders';
 
 // CONFIG

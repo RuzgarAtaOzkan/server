@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { Document, InsertOneResult, ObjectId } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // CONFIG
 import config from '../config';

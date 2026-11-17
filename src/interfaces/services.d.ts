@@ -68,6 +68,7 @@ export interface user_get_sessions_credentials_i {
 }
 
 export interface user_delete_session_credentials_i {
+  readonly target: string; // target sid to point session for deletion
   readonly sid: string;
   readonly user: Document;
 }

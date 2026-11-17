@@ -2,7 +2,7 @@
 
 // INTERFACES
 import { Document, ObjectId } from 'mongodb';
-import { options_i } from 'interfaces/common';
+import { options_i } from 'interfaces/loaders';
 
 // UTILS
 import { product_validator_init } from '../utils/services';
